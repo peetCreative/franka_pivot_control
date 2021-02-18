@@ -15,12 +15,13 @@ int main(int argc, char *argv[])
             1.2, -1.2,
             0.32, 0
             };
-    float distanceEE2PP = 0.35;
+    float distanceEE2PP = 0.2;
     float maxWaypointDist = 0.01;
     float cameraTilt = -0.52359;
     float step = 0.05;
+    //TODO: guard exceptions
     franka_pivot_control::FrankaPivotControl pivoting(
-            argv[0], boundaries,
+            argv[1], boundaries,
             distanceEE2PP, maxWaypointDist, cameraTilt);
     std::cout << "Robot will move after you press any key." << std::endl;
     std::cout << "Hold the safety Button close." << std::endl;
@@ -29,40 +30,45 @@ int main(int argc, char *argv[])
     std::cout << "Fot roll: use r and t" << std::endl;
     std::cout << "Fot transZ: use f and g" << std::endl;
     std::cout << "To Stop: use q" << std::endl;
+    int start;
+    std::cin >> start;
+    if (start == 0)
+        return 0;
     bool quit = false;
     franka_pivot_control::DOFPose pose;
-    while(quit)
+    while(!quit)
     {
-        pose = pivoting.getCurrentDOFPose();
         std::string in;
+        std::cout << "next: " << std::endl;
         std::cin >> in;
         if(in.length() < 1)
             return 0;
+        pose = pivoting.getCurrentDOFPose();
         char inChar = in.at(0);
         switch (inChar) {
             case 'w':
-                pose.pitch + step;
+                pose.pitch += step;
                 break;
             case 's':
-                pose.pitch - step;
+                pose.pitch -= step;
                 break;
             case 'a':
-                pose.yaw + step;
+                pose.yaw += step;
                 break;
             case 'd':
-                pose.yaw - step;
+                pose.yaw -= step;
                 break;
             case 'r':
-                pose.roll + step;
+                pose.roll += step;
                 break;
             case 't':
-                pose.roll - step;
+                pose.roll -= step;
                 break;
             case 'f':
-                pose.transZ + step;
+                pose.transZ += step;
                 break;
             case 'g':
-                pose.transZ - step;
+                pose.transZ -= step;
                 break;
             case 'q':
                 return 0;
