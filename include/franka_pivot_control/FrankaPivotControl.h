@@ -18,10 +18,14 @@ namespace franka_pivot_control
     };
     struct DOFBoundaries
     {
-        float pitch = 0;
-        float yaw = 0;
-        float roll = 0;
-        float transZ = 0;
+        float pitchMax = 0;
+        float pitchMin = 0;
+        float yawMax = 0;
+        float yawMin = 0;
+        float rollMax = 0;
+        float rollMin = 0;
+        float transZMax = 0;
+        float transZMin = 0;
     };
     class PivotControl;
     class FrankaPivotControl
