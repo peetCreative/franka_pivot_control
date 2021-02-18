@@ -4,6 +4,20 @@ project( franka_pivot_control )
 set(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
 
+# use, i.e. don't skip the full RPATH for the build tree
+set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 message("Found Eigen Version: ${Eigen3_VERSION}")
 message("Include: ${Eigen3_INCLUDE_DIRS}")
