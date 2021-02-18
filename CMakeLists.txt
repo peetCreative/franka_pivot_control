@@ -25,9 +25,15 @@ add_library(
         src/FrankaPivotControl.cpp
         src/PivotControl.cpp)
 
+add_executable(keyboardTest
+        example/keyboardTest.cpp)
+
 target_link_libraries(${franka_pivot_control_LIB}
     Eigen3::Eigen
     ${frankx_LIBRARIES})
+
+target_link_libraries(keyboardTest
+    ${franka_pivot_control_LIB})
 
 install( TARGETS ${franka_pivot_control_LIB}
         DESTINATION bin
