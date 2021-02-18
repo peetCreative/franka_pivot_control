@@ -5,6 +5,7 @@
 #include "FrankaPivotControl.h"
 #include "frankx/frankx.hpp"
 
+#include <iostream>
 #include <Eigen/Core>
 
 namespace franka_pivot_control
@@ -24,6 +25,7 @@ namespace franka_pivot_control
 
         mCurrentAffine = mRobot.currentPose();
         mInitialEEAffine = mCurrentAffine;
+        std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
         mCurrentDOFPose = {0,0,0,0};
         mDOFBoundaries = dofBoundaries;
         mDistanceEE2PP = distanceEE2PP;
@@ -38,6 +40,8 @@ namespace franka_pivot_control
 
     void PivotControl::setTargetDOFPose(DOFPose dofPose)
     {
+        std::cout << "setTargetDOFPose"<< std::endl
+            << dofPose.toString() << std::endl;
         float radius = mDistanceEE2PP - dofPose.transZ;
         //rotate Y, Z Axis
 
@@ -100,6 +104,8 @@ namespace franka_pivot_control
         }
         frankx::Waypoint waypoint(targetAffine);
         waypoints.push_back(waypoint);
+        std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
+        std::cout << "targetAffine" << targetAffine.toString() << std::endl;
 
         frankx::WaypointMotion waypointMotion(waypoints);
         mRobot.move(waypointMotion);
