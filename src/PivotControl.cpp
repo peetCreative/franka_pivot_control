@@ -43,10 +43,8 @@ namespace franka_pivot_control
         std::cout << "setTargetDOFPose"<< std::endl
             << dofPose.toString() << std::endl;
         float radius = mDistanceEE2PP - dofPose.transZ;
-        //rotate Y, Z Axis
 
         //from DOFPose calculate Cartisian Affine
-        //TODO: rethink
         frankx::Affine targetAffine = mInitialEEAffine;
         // or do it the other way around
         targetAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
