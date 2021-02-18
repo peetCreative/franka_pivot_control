@@ -31,7 +31,7 @@ namespace franka_pivot_control
     class FrankaPivotControl
     {
     private:
-        std::unique_ptr<PivotControl> mController = nullptr;
+        PivotControl *mController = nullptr;
     public:
         FrankaPivotControl(
                 std::string robotHostname,

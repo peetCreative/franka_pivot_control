@@ -13,7 +13,7 @@ namespace franka_pivot_control
             float maxWaypointDist,
             float cameraTilt)
     {
-        mController = std::make_unique<PivotControl>(
+        mController = new PivotControl(
                 robotHostname, dofBoundaries,
                 distanceEE2PP, maxWaypointDist, cameraTilt);
     }
