@@ -47,14 +47,15 @@ namespace franka_pivot_control
         //from DOFPose calculate Cartisian Affine
         frankx::Affine targetAffine = mInitialEEAffine;
         // or do it the other way around
-        targetAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
+        targetAffine.translate(Eigen::Vector3d(0, 0, mDistanceEE2PP));
         targetAffine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         targetAffine.rotate(Eigen::AngleAxisd(
                 dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
         targetAffine.rotate(Eigen::AngleAxisd(
                 dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
-        targetAffine.translate(Eigen::Vector3d(0,0,radius));
+        targetAffine.translate(Eigen::Vector3d(0,0, -radius));
+        mCurrentAffine = mRobot.currentPose();
 
         // look at distance from current pose to and if over threshold seperate it in small steps
         Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
@@ -62,51 +63,15 @@ namespace franka_pivot_control
         int numWaypoints = std::ceil(pathLength / mMaxWaypointDist);
         Eigen::Vector3d waypointDist = path/numWaypoints;
         std::vector<frankx::Waypoint> waypoints;
-        Eigen::Quaterniond currentOrientation = mCurrentAffine.quaternion();
-        Eigen::Quaterniond targetOrientation = targetAffine.quaternion();
-        for(int i = 1; i < numWaypoints; i ++)
-        {
-            Eigen::Vector3d waypointPosition =
-                    mCurrentAffine.translation() +
-                            (i * waypointDist);
-            Eigen::Quaterniond slerpOrientation = currentOrientation.slerp(i/numWaypoints, targetOrientation);
-            Eigen::Quaterniond waypointOrientation = currentOrientation * slerpOrientation;
-            //TODO: test that the new quaternion is looking at the pivot point
-//            double r = (waypointPosition - mPivotPoint).norm();
-//            Eigen::Vector3d unitWaypointPosition = waypointPosition/r;
-//                    Eigen::Quaterniond::FromTwoVectors(
-//                    Eigen::Vector3d::UnitZ(),
-//                    unitWaypointPosition
-//                    );
-
-//            double dot = Eigen::Vector3d::UnitZ().dot(unitWaypointPosition);
-//            if ( dot > 0.99)
-//            {
-//                orientation = Eigen::Quaterniond(1,0,0,0);
-//            }
-//            else
-//            {
-//                Eigen::Vector3d cross = Eigen::Vector3d::UnitZ().cross(waypointPosition/r);
-//                double w = 1 + dot;
-//                orientation = Eigen::Quaterniond(w, cross.x(), cross.y(), cross.z());
-//            }
-//            orientation.
-            frankx::Affine waypointAffine(
-                    waypointPosition.x(), waypointAffine.y(), waypointPosition.z(),
-                    waypointOrientation.w(),
-                    waypointOrientation.x(),
-                    waypointOrientation.y(),
-                    waypointOrientation.z());
-            frankx::Waypoint waypoint(waypointAffine);
-            waypoints.push_back(waypoint);
-        }
         frankx::Waypoint waypoint(targetAffine);
         waypoints.push_back(waypoint);
         std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
         std::cout << "targetAffine" << targetAffine.toString() << std::endl;
 
         frankx::WaypointMotion waypointMotion(waypoints);
+        //TODO: check move is blocking
         mRobot.move(waypointMotion);
+        mCurrentDOFPose = dofPose;
     }
 
     DOFPose PivotControl::getCurrentDOFPose()
