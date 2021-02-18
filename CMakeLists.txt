@@ -30,7 +30,8 @@ add_executable(keyboardTest
 
 target_link_libraries(${franka_pivot_control_LIB}
     Eigen3::Eigen
-    ${frankx_LIBRARIES})
+    ${frankx_LIBRARIES}
+        ${Franka_LIBRARIES})
 
 target_link_libraries(keyboardTest
     ${franka_pivot_control_LIB})

@@ -6,8 +6,13 @@ else()
     message(frankx_INCLUDE_DIRS:${frankx_INCLUDE_DIRS})
     set(frankx_LIB_PATHS "${frankx_ROOT}/lib")
     FIND_LIBRARY(frankx_LIBRARY frankx ${frankx_LIB_PATHS})
+    FIND_LIBRARY(movex_LIBRARY movex ${frankx_LIB_PATHS})
+    FIND_LIBRARY(ruckig_LIBRARY ruckig ${frankx_LIB_PATHS})
     message(frankx_LIBRARY:${frankx_LIBRARY})
-    SET(frankx_LIBRARIES ${frankx_LIBRARY})
+    SET(frankx_LIBRARIES
+            "${frankx_LIBRARY}"
+            "${movex_LIBRARY}"
+            "${ruckig_LIBRARY}")
     if (NOT ${frankx_INCLUDE_DIRS} STREQUAL "")
         SET(frankx_FOUND "YES")
     else()
