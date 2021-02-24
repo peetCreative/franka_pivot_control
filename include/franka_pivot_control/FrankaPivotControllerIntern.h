@@ -5,16 +5,20 @@
 #ifndef FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_H
 #define FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_H
 
-#include "FrankaPivotControl.h"
+#include "FrankaPivotController.h"
+
+#include "PivotControlMessages.h"
 
 #include "frankx/frankx.hpp"
 #include <memory>
 #include <Eigen/Core>
 
+using namespace pivot_control_messages;
+
 namespace franka_pivot_control
 {
     // intern class
-    class PivotControl
+    class FrankaPivotControllerIntern : public pivot_control_messages::PivotController
     {
     private:
         frankx::Robot mRobot;
@@ -27,16 +31,19 @@ namespace franka_pivot_control
         float mMaxWaypointDist;
         Eigen::Vector3d mYAxis;
         Eigen::Vector3d mZAxis;
+        bool updateCurrentDOFPoseFromAffine();
     public:
-        PivotControl(
+        FrankaPivotControllerIntern(
                 std::string robotHostname,
-                DOFBoundaries dofBoundaries,
                 float distanceEE2PP,
                 float maxWaypointDist,
                 float cameraTilt);
-        void setTargetDOFPose(DOFPose);
-        DOFPose getCurrentDOFPose();
-        DOFBoundaries getCurrentDOFBoundaries();
+        bool setTargetDOFPose(
+                DOFPose);
+        bool getCurrentDOFPose(
+                DOFPose &laparoscopeDofPose);
+        bool getDOFBoundaries(
+                DOFBoundaries &laparoscopeDofBoundaries);
     };
 }
 

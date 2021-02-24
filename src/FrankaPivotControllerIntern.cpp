@@ -1,33 +1,39 @@
 //
 // Created by peetcreative on 17.02.21.
 //
-#include "PivotControl.h"
-#include "FrankaPivotControl.h"
+#include "FrankaPivotControllerIntern.h"
 #include "frankx/frankx.hpp"
+#include "PivotControlMessages.h"
+
 
 #include <iostream>
 #include <Eigen/Core>
 
 namespace franka_pivot_control
 {
-    PivotControl::PivotControl(
+    FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
-            DOFBoundaries dofBoundaries,
             float distanceEE2PP,
             float maxWaypointDist,
             float cameraTilt):
             mRobot(robotHostname)
     {
-        //TODO:findout what this is doin
         mRobot.automaticErrorRecovery();
-        //TODO:findout what this is doin
         mRobot.setDynamicRel(0.15);
 
         mCurrentAffine = mRobot.currentPose();
         mInitialEEAffine = mCurrentAffine;
         std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
+        //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
-        mDOFBoundaries = dofBoundaries;
+        //TODO: calculate limits from the joints limits
+        mDOFBoundaries =
+                {
+                0.5, -0.5,
+                1.2,-1.2,
+                1.2, -1.2,
+                0.32, 0
+                };
         mDistanceEE2PP = distanceEE2PP;
         mPivotPoint = mInitialEEAffine.translation() - Eigen::Vector3d(0,0,-mDistanceEE2PP);
         mMaxWaypointDist = maxWaypointDist;
@@ -38,7 +44,7 @@ namespace franka_pivot_control
 
     //write helper function for factor
 
-    void PivotControl::setTargetDOFPose(DOFPose dofPose)
+    bool FrankaPivotControllerIntern::setTargetDOFPose(DOFPose dofPose)
     {
         std::cout << "setTargetDOFPose"<< std::endl
             << dofPose.toString() << std::endl;
@@ -72,16 +78,36 @@ namespace franka_pivot_control
         //TODO: check move is blocking
         mRobot.move(waypointMotion);
         mCurrentDOFPose = dofPose;
+        //TODO: catch errors and return false
+        return true;
     }
 
-    DOFPose PivotControl::getCurrentDOFPose()
+    bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
     {
+        //calculate point of shortest distance between -z axis of this transform and mPivotPoint
+        //if distance over threshhold throw error
+
+        // calculate trans_z by distance between pivot point and EndEffector
+        // calculate pitch, yaw and roll
+        //mCurrentAffine;
+
+        return true;
+    }
+
+    bool FrankaPivotControllerIntern::getCurrentDOFPose(DOFPose &pose)
+    {
+        if (!mDofPoseReady)
+            return false;
         //TODO: calculate from mCurrentAffine
-        return mCurrentDOFPose;
+        pose = mCurrentDOFPose;
+        return true;
     }
 
-    DOFBoundaries PivotControl::getCurrentDOFBoundaries()
+    bool FrankaPivotControllerIntern::getDOFBoundaries(DOFBoundaries &boundaries)
     {
-        return mDOFBoundaries;
+        if (!mDofBoundariesReady)
+            return false;
+        boundaries = mDOFBoundaries;
+        return true;
     }
 }

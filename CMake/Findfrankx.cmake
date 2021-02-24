@@ -8,7 +8,6 @@ else()
     FIND_LIBRARY(frankx_LIBRARY frankx ${frankx_LIB_PATHS})
     FIND_LIBRARY(movex_LIBRARY movex ${frankx_LIB_PATHS})
     FIND_LIBRARY(ruckig_LIBRARY ruckig ${frankx_LIB_PATHS})
-    message(frankx_LIBRARY:${frankx_LIBRARY})
     SET(frankx_LIBRARIES
             "${frankx_LIBRARY}"
             "${movex_LIBRARY}"

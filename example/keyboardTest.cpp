@@ -1,6 +1,8 @@
-#include "FrankaPivotControl.h"
-#include <iostream>
+#include "FrankaPivotController.h"
 
+#include "PivotControlMessages.h"
+
+#include <iostream>
 
 int main(int argc, char *argv[])
 {
@@ -8,21 +10,14 @@ int main(int argc, char *argv[])
         std::cerr << "Usage: " << argv[0] << " <robot-hostname>" << std::endl;
         return -1;
     }
-    franka_pivot_control::DOFBoundaries boundaries =
-            {
-            0.5, -0.5,
-            1.2,-1.2,
-            1.2, -1.2,
-            0.32, 0
-            };
     float distanceEE2PP = 0.2;
     float maxWaypointDist = 0.01;
     float cameraTilt = -0.52359;
     float step = 0.05;
     //TODO: guard exceptions
-    franka_pivot_control::FrankaPivotControl pivoting(
-            argv[1], boundaries,
-            distanceEE2PP, maxWaypointDist, cameraTilt);
+    franka_pivot_control::FrankaPivotController pivoting(
+            argv[1], distanceEE2PP,
+            maxWaypointDist, cameraTilt);
     std::cout << "Robot will move after you press any key." << std::endl;
     std::cout << "Hold the safety Button close." << std::endl;
     std::cout << "Fot pitch: use w and s" << std::endl;
@@ -35,7 +30,8 @@ int main(int argc, char *argv[])
     if (start == 0)
         return 0;
     bool quit = false;
-    franka_pivot_control::DOFPose pose;
+    pivot_control_messages::DOFPose pose;
+    pivot_control_messages::DOFBoundaries boundaries;
     while(!quit)
     {
         std::string in;
@@ -43,7 +39,12 @@ int main(int argc, char *argv[])
         std::cin >> in;
         if(in.length() < 1)
             return 0;
-        pose = pivoting.getCurrentDOFPose();
+        if(!pivoting.getCurrentDOFPose(pose) &&
+            !pivoting.getDOFBoundaries(boundaries))
+        {
+            std::cout << "An Error occured in Robot Controller" << std::endl;
+            break;
+        }
         char inChar = in.at(0);
         switch (inChar) {
             case 'w':

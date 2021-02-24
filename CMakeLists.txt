@@ -25,19 +25,23 @@ find_package( frankx REQUIRED )
 find_package(Franka 0.8 REQUIRED)
 message("Franka: ${Franka_FOUND}")
 message("Include: ${Franka_VERSION}")
+
+add_subdirectory(pivot_control_messages)
+
 include_directories(
         "${frankx_INCLUDE_DIRS}"
-        "${Franka_INCLUDE_DIRS}")
+        "${Franka_INCLUDE_DIRS}"
+        "pivot_control_messages/include")
 
 SET(franka_pivot_control_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include/franka_pivot_control)
 include_directories(${franka_pivot_control_INCLUDE_DIR})
 
-SET(franka_pivot_control_LIB ${PROJECT_NAME}_lib)
+SET(franka_pivot_control_LIB ${PROJECT_NAME})
 
 add_library(
     ${franka_pivot_control_LIB} SHARED
-        src/FrankaPivotControl.cpp
-        src/PivotControl.cpp)
+        src/FrankaPivotController.cpp
+        src/FrankaPivotControllerIntern.cpp)
 
 add_executable(keyboardTest
         example/keyboardTest.cpp)
@@ -45,15 +49,15 @@ add_executable(keyboardTest
 target_link_libraries(${franka_pivot_control_LIB}
     Eigen3::Eigen
     ${frankx_LIBRARIES}
-        ${Franka_LIBRARIES})
+        ${Franka_LIBRARIES}
+        "pivot_control_messages")
 
 target_link_libraries(keyboardTest
     ${franka_pivot_control_LIB})
 
 install( TARGETS ${franka_pivot_control_LIB}
-        DESTINATION bin
-        LIBRARY DESTINATION lib)
+        DESTINATION lib)
 
-install( DIRECTORY ${franka_pivot_control_INCLUDE_DIR}
+install( FILES ${franka_pivot_control_INCLUDE_DIR}/FrankaPivotController.h
         DESTINATION include)
 

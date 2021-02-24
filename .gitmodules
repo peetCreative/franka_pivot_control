@@ -1,0 +1,3 @@
+[submodule "pivot_control_messages"]
+	path = pivot_control_messages
+	url = https://github.com/peetCreative/pivot_control_messages.git
