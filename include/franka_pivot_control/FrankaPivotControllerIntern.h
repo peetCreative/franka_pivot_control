@@ -22,8 +22,13 @@ namespace franka_pivot_control
     {
     private:
         frankx::Robot mRobot;
+        std::thread mMoveThread;
+        bool mIsThreadRunning {};
+        movex::WaypointMotion mWaypointMotion;
+        movex::Waypoint mTargetWaypoint;
         frankx::Affine mCurrentAffine;
         frankx::Affine mInitialEEAffine;
+        DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
         DOFBoundaries mDOFBoundaries;
         float mDistanceEE2PP;
@@ -32,6 +37,7 @@ namespace franka_pivot_control
         Eigen::Vector3d mYAxis;
         Eigen::Vector3d mZAxis;
         bool updateCurrentDOFPoseFromAffine();
+        void move();
     public:
         FrankaPivotControllerIntern(
                 std::string robotHostname,

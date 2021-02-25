@@ -5,7 +5,7 @@
 #include "frankx/frankx.hpp"
 #include "PivotControlMessages.h"
 
-
+#include <thread>
 #include <iostream>
 #include <Eigen/Core>
 
@@ -40,12 +40,23 @@ namespace franka_pivot_control
         //TODO: rotate with angles
         mYAxis = Eigen::Vector3d::UnitY();
         mZAxis = Eigen::Vector3d::UnitZ();
+        mWaypointMotion = movex::WaypointMotion({}, false);
     }
 
     //write helper function for factor
+    void FrankaPivotControllerIntern::move()
+    {
+        mIsThreadRunning = true;
+        mRobot.move(mWaypointMotion);
+        //TODO: catch errors and return false
+        mIsThreadRunning = false;
+    }
 
     bool FrankaPivotControllerIntern::setTargetDOFPose(DOFPose dofPose)
     {
+        mCurrentAffine = mRobot.currentPose();
+        if (mTargetDOFPose == dofPose)
+            return true;
         std::cout << "setTargetDOFPose"<< std::endl
             << dofPose.toString() << std::endl;
         float radius = mDistanceEE2PP - dofPose.transZ;
@@ -61,24 +72,25 @@ namespace franka_pivot_control
         targetAffine.rotate(Eigen::AngleAxisd(
                 dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
         targetAffine.translate(Eigen::Vector3d(0,0, -radius));
-        mCurrentAffine = mRobot.currentPose();
 
         // look at distance from current pose to and if over threshold seperate it in small steps
-        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
-        float pathLength = path.norm();
-        int numWaypoints = std::ceil(pathLength / mMaxWaypointDist);
-        Eigen::Vector3d waypointDist = path/numWaypoints;
-        std::vector<frankx::Waypoint> waypoints;
-        frankx::Waypoint waypoint(targetAffine);
-        waypoints.push_back(waypoint);
+//        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
+//        float pathLength = path.norm();
+//        int numWaypoints = std::ceil(pathLength / mMaxWaypointDist);
+//        Eigen::Vector3d waypointDist = path/numWaypoints;
+//
+//
+//        std::vector<frankx::Waypoint> waypoints;
         std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
         std::cout << "targetAffine" << targetAffine.toString() << std::endl;
 
-        frankx::WaypointMotion waypointMotion(waypoints);
-        //TODO: check move is blocking
-        mRobot.move(waypointMotion);
-        mCurrentDOFPose = dofPose;
-        //TODO: catch errors and return false
+        mTargetWaypoint = movex::Waypoint(targetAffine);
+        mWaypointMotion.setNextWaypoint(mTargetWaypoint);
+
+        if(!mIsThreadRunning)
+            mMoveThread = std::thread(&FrankaPivotControllerIntern::move, this);
+
+        mTargetDOFPose = dofPose;
         return true;
     }
 
