@@ -32,6 +32,8 @@ namespace franka_pivot_control
                 DOFPose &pose);
         bool getDOFBoundaries(
                 DOFBoundaries &boundaries);
+        bool isReady();
+
     };
 }
 #endif //FRANKA_PIVOT_CONTROL_FRANKA_PIVOT_CONTROL_H

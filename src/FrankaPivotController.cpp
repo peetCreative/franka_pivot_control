@@ -31,4 +31,9 @@ namespace franka_pivot_control
     {
         return mController->getDOFBoundaries(boundaries);
     }
+
+    bool FrankaPivotController::isReady()
+    {
+        return mController->isReady();
+    }
 }

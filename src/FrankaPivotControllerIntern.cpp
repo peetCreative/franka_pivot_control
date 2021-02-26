@@ -18,14 +18,23 @@ namespace franka_pivot_control
             float cameraTilt):
             mRobot(robotHostname)
     {
-        mRobot.automaticErrorRecovery();
-        mRobot.setDynamicRel(0.15);
+        try {
+            mRobot.automaticErrorRecovery();
+            mRobot.setDynamicRel(0.15);
 
-        mCurrentAffine = mRobot.currentPose();
-        mInitialEEAffine = mCurrentAffine;
-        std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
+            mCurrentAffine = mRobot.currentPose();
+            mInitialEEAffine = mCurrentAffine;
+            std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
+        }
+        catch (...)
+        {
+            std::cout << "ERROR: Could not initialize sth here" << std::endl;
+            return;
+        }
+
         //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
+        mDofPoseReady = true;
         //TODO: calculate limits from the joints limits
         mDOFBoundaries =
                 {
@@ -34,6 +43,7 @@ namespace franka_pivot_control
                 1.2, -1.2,
                 0.32, 0
                 };
+        mDofBoundariesReady = true;
         mDistanceEE2PP = distanceEE2PP;
         mPivotPoint = mInitialEEAffine.translation() - Eigen::Vector3d(0,0,-mDistanceEE2PP);
         mMaxWaypointDist = maxWaypointDist;
@@ -87,9 +97,12 @@ namespace franka_pivot_control
         mTargetWaypoint = movex::Waypoint(targetAffine);
         mWaypointMotion.setNextWaypoint(mTargetWaypoint);
 
+        mIsThreadRunning = true;
         if(!mIsThreadRunning)
+        {
+            //move();
             mMoveThread = std::thread(&FrankaPivotControllerIntern::move, this);
-
+        }
         mTargetDOFPose = dofPose;
         return true;
     }
