@@ -18,17 +18,13 @@ int main(int argc, char *argv[])
     franka_pivot_control::FrankaPivotController pivoting(
             argv[1], distanceEE2PP,
             maxWaypointDist, cameraTilt);
-    std::cout << "Robot will move after you press any key." << std::endl;
-    std::cout << "Hold the safety Button close." << std::endl;
     std::cout << "Fot pitch: use w and s" << std::endl;
     std::cout << "Fot yaw: use a and d" << std::endl;
     std::cout << "Fot roll: use r and t" << std::endl;
     std::cout << "Fot transZ: use f and g" << std::endl;
     std::cout << "To Stop: use q" << std::endl;
-    int start;
-    std::cin >> start;
-    if (start == 0)
-        return 0;
+    std::cout << "Robot will move after you press any key." << std::endl;
+    std::cout << "Hold the safety Button close." << std::endl;
     bool quit = false;
     pivot_control_messages::DOFPose pose;
     pivot_control_messages::DOFBoundaries boundaries;
@@ -39,7 +35,7 @@ int main(int argc, char *argv[])
         std::cin >> in;
         if(in.length() < 1)
             return 0;
-        if(!pivoting.getCurrentDOFPose(pose) &&
+        if(!pivoting.getCurrentDOFPose(pose) ||
             !pivoting.getDOFBoundaries(boundaries))
         {
             std::cout << "An Error occured in Robot Controller" << std::endl;
@@ -83,6 +79,7 @@ int main(int argc, char *argv[])
         pose.roll = std::max(pose.roll, boundaries.rollMin);
         pose.transZ = std::min(pose.transZ, boundaries.transZMax);
         pose.transZ = std::max(pose.transZ, boundaries.transZMin);
+        std::cout << "moveTo" << pose.toString() << std::endl;
         pivoting.setTargetDOFPose(pose);
     }
 }
