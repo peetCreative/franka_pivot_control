@@ -11,27 +11,58 @@
 
 namespace franka_pivot_control
 {
+    void printJointPositions(std::array<double,7> positions)
+    {
+        std::cout << "["
+            << positions.at(0) << " "
+            << positions.at(1) << " "
+            << positions.at(2) << " "
+            << positions.at(3) << " "
+            << positions.at(4) << " "
+            << positions.at(5) << " "
+            << positions.at(6) << "]" << std::endl;
+    }
+
     FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
             float distanceEE2PP,
             float maxWaypointDist,
             float cameraTilt):
-            mRobot(robotHostname)
+            mRobot(robotHostname),
+            mMotionData()
     {
+        std::cout << "Initializing Panda" << std::endl;
         try {
             mRobot.automaticErrorRecovery();
-            mRobot.setDynamicRel(0.15);
-
-            mCurrentAffine = mRobot.currentPose();
-            mInitialEEAffine = mCurrentAffine;
-            std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
         }
         catch (...)
         {
-            std::cout << "ERROR: Could not initialize sth here" << std::endl;
+            std::cout << "Initializing Panda failed" << std::endl;
             return;
         }
 
+        //alternatively
+//        mRobot.velocity_rel = 0.01;
+//        mRobot.acceleration_rel = 0.01;
+//        mRobot.jerk_rel = 0.01;
+        mRobot.setDynamicRel(0.05);
+        mRobot.setDefaultBehavior();
+
+        // so the thread crashes and we can restart it properly
+        mRobot.repeat_on_error = false;
+
+////        GOTO custom start pose
+//        std::array<double, 7> jointPos =
+//                {1.54919, -0.539112, 0.108926, -2.1571, -0.0957537, 2.05686, 0.782756};
+//        printJointPositions(jointPos);
+////        jointPos.at(0) += 1.57079632679;
+//        frankx::JointMotion turnright(jointPos);
+//        mRobot.move(turnright);
+//
+
+        mCurrentAffine = mRobot.currentPose();
+        mInitialEEAffine = mCurrentAffine;
+        std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
         //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
         mDofPoseReady = true;
@@ -50,23 +81,39 @@ namespace franka_pivot_control
         //TODO: rotate with angles
         mYAxis = Eigen::Vector3d::UnitY();
         mZAxis = Eigen::Vector3d::UnitZ();
-        mWaypointMotion = movex::WaypointMotion({}, false);
+        mTargetWaypoint = movex::Waypoint(mCurrentAffine);
+        mWaypointMotion = movex::WaypointMotion({mTargetWaypoint}, false);
+        mMotionDataMutex = std::make_shared<std::mutex>();
+        mMotionData.last_pose_lock = mMotionDataMutex;
+        mMoveThread = std::thread(&FrankaPivotControllerIntern::move, this);
     }
 
     //write helper function for factor
     void FrankaPivotControllerIntern::move()
     {
         mIsThreadRunning = true;
-        mRobot.move(mWaypointMotion);
+        std::cout << "start motion" << std::endl;
+        if(!mRobot.move(mWaypointMotion, mMotionData))
+            std::cout << "stop motion on libfranka error" << std::endl;
+
+        if (mMotionData.didBreak())
+            std::cout << "MotionData did Break" << std::endl;
         //TODO: catch errors and return false
         mIsThreadRunning = false;
     }
 
     bool FrankaPivotControllerIntern::setTargetDOFPose(DOFPose dofPose)
     {
-        mCurrentAffine = mRobot.currentPose();
+        //read current Affine from MotionData
+        {
+            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
+            mCurrentAffine = mMotionData.last_pose;
+        }
         if (mTargetDOFPose == dofPose)
+        {
+            std::cout << "nothing to do"<< std::endl;
             return true;
+        }
         std::cout << "setTargetDOFPose"<< std::endl
             << dofPose.toString() << std::endl;
         float radius = mDistanceEE2PP - dofPose.transZ;
@@ -74,14 +121,14 @@ namespace franka_pivot_control
         //from DOFPose calculate Cartisian Affine
         frankx::Affine targetAffine = mInitialEEAffine;
         // or do it the other way around
-        targetAffine.translate(Eigen::Vector3d(0, 0, mDistanceEE2PP));
+        targetAffine.translate(Eigen::Vector3d(0, 0, -mDistanceEE2PP));
         targetAffine.rotate(Eigen::AngleAxisd(
-                dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
+                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         targetAffine.rotate(Eigen::AngleAxisd(
-                dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
+                 dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
         targetAffine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
-        targetAffine.translate(Eigen::Vector3d(0,0, -radius));
+                 dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
+        targetAffine.translate(Eigen::Vector3d(0,0, radius));
 
         // look at distance from current pose to and if over threshold seperate it in small steps
 //        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
@@ -97,10 +144,12 @@ namespace franka_pivot_control
         mTargetWaypoint = movex::Waypoint(targetAffine);
         mWaypointMotion.setNextWaypoint(mTargetWaypoint);
 
-        mIsThreadRunning = true;
-        if(!mIsThreadRunning)
+        if (!mIsThreadRunning)
         {
-            //move();
+            mIsThreadRunning = true;
+            std::cout << "start new thread" << std::endl;
+            mRobot.automaticErrorRecovery();
+            mMoveThread.join();
             mMoveThread = std::thread(&FrankaPivotControllerIntern::move, this);
         }
         mTargetDOFPose = dofPose;
@@ -109,6 +158,7 @@ namespace franka_pivot_control
 
     bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
     {
+        //TODO: calculate from mCurrentAffine
         //calculate point of shortest distance between -z axis of this transform and mPivotPoint
         //if distance over threshhold throw error
 
@@ -116,6 +166,7 @@ namespace franka_pivot_control
         // calculate pitch, yaw and roll
         //mCurrentAffine;
 
+        mCurrentDOFPose = mTargetDOFPose;
         return true;
     }
 
@@ -123,7 +174,7 @@ namespace franka_pivot_control
     {
         if (!mDofPoseReady)
             return false;
-        //TODO: calculate from mCurrentAffine
+        updateCurrentDOFPoseFromAffine();
         pose = mCurrentDOFPose;
         return true;
     }

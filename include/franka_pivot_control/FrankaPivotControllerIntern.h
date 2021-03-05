@@ -23,9 +23,11 @@ namespace franka_pivot_control
     private:
         frankx::Robot mRobot;
         std::thread mMoveThread;
-        bool mIsThreadRunning {};
+        bool mIsThreadRunning {false};
         movex::WaypointMotion mWaypointMotion;
         movex::Waypoint mTargetWaypoint;
+        std::shared_ptr<std::mutex> mMotionDataMutex;
+        movex::MotionData mMotionData;
         frankx::Affine mCurrentAffine;
         frankx::Affine mInitialEEAffine;
         DOFPose mTargetDOFPose;
