@@ -25,9 +25,9 @@ namespace franka_pivot_control
 
     FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
-            float distanceEE2PP,
-            float maxWaypointDist,
-            float cameraTilt):
+            double distanceEE2PP,
+            double maxWaypointDist,
+            double cameraTilt):
             mRobot(robotHostname),
             mMotionData()
     {
@@ -116,7 +116,7 @@ namespace franka_pivot_control
         }
         std::cout << "setTargetDOFPose"<< std::endl
             << dofPose.toString() << std::endl;
-        float radius = mDistanceEE2PP - dofPose.transZ;
+        double radius = mDistanceEE2PP - dofPose.transZ;
 
         //from DOFPose calculate Cartisian Affine
         frankx::Affine targetAffine = mInitialEEAffine;
@@ -132,7 +132,7 @@ namespace franka_pivot_control
 
         // look at distance from current pose to and if over threshold seperate it in small steps
 //        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
-//        float pathLength = path.norm();
+//        double pathLength = path.norm();
 //        int numWaypoints = std::ceil(pathLength / mMaxWaypointDist);
 //        Eigen::Vector3d waypointDist = path/numWaypoints;
 //

@@ -33,9 +33,9 @@ namespace franka_pivot_control
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
         DOFBoundaries mDOFBoundaries;
-        float mDistanceEE2PP;
+        double mDistanceEE2PP;
         Eigen::Vector3d mPivotPoint;
-        float mMaxWaypointDist;
+        double mMaxWaypointDist;
         Eigen::Vector3d mYAxis;
         Eigen::Vector3d mZAxis;
         bool updateCurrentDOFPoseFromAffine();
@@ -43,9 +43,9 @@ namespace franka_pivot_control
     public:
         FrankaPivotControllerIntern(
                 std::string robotHostname,
-                float distanceEE2PP,
-                float maxWaypointDist,
-                float cameraTilt);
+                double distanceEE2PP,
+                double maxWaypointDist,
+                double cameraTilt);
         bool setTargetDOFPose(
                 DOFPose);
         bool getCurrentDOFPose(

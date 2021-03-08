@@ -8,9 +8,9 @@ namespace franka_pivot_control
 {
     FrankaPivotController::FrankaPivotController(
             std::string robotHostname,
-            float distanceEE2PP,
-            float maxWaypointDist,
-            float cameraTilt)
+            double distanceEE2PP,
+            double maxWaypointDist,
+            double cameraTilt)
     {
         mController = new FrankaPivotControllerIntern(
                 robotHostname, distanceEE2PP,
