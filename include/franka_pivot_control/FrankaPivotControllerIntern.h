@@ -30,14 +30,20 @@ namespace franka_pivot_control
         movex::MotionData mMotionData;
         frankx::Affine mCurrentAffine;
         frankx::Affine mInitialEEAffine;
+        frankx::Affine mInitialPPAffine;
+        frankx::Affine mInitialOrientAffine;
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
         DOFBoundaries mDOFBoundaries;
+        double mCurrentError {0};
         double mDistanceEE2PP;
-        Eigen::Vector3d mPivotPoint;
         double mMaxWaypointDist;
         Eigen::Vector3d mYAxis;
         Eigen::Vector3d mZAxis;
+        void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
+        void calcDOFPoseFromAffine(
+                frankx::Affine affine,
+                DOFPose &dofPose, double &error);
         bool updateCurrentDOFPoseFromAffine();
         void move();
     public:

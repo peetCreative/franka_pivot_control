@@ -76,7 +76,12 @@ namespace franka_pivot_control
                 };
         mDofBoundariesReady = true;
         mDistanceEE2PP = distanceEE2PP;
-        mPivotPoint = mInitialEEAffine.translation() - Eigen::Vector3d(0,0,-mDistanceEE2PP);
+        mInitialPPAffine = mInitialEEAffine;
+        mInitialPPAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
+        mInitialOrientAffine = mCurrentAffine;
+        mInitialOrientAffine.set_x(0);
+        mInitialOrientAffine.set_y(0);
+        mInitialOrientAffine.set_z(0);
         mMaxWaypointDist = maxWaypointDist;
         //TODO: rotate with angles
         mYAxis = Eigen::Vector3d::UnitY();
@@ -119,16 +124,8 @@ namespace franka_pivot_control
         double radius = mDistanceEE2PP - dofPose.transZ;
 
         //from DOFPose calculate Cartisian Affine
-        frankx::Affine targetAffine = mInitialEEAffine;
-        // or do it the other way around
-        targetAffine.translate(Eigen::Vector3d(0, 0, -mDistanceEE2PP));
-        targetAffine.rotate(Eigen::AngleAxisd(
-                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
-        targetAffine.rotate(Eigen::AngleAxisd(
-                 dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
-        targetAffine.rotate(Eigen::AngleAxisd(
-                 dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
-        targetAffine.translate(Eigen::Vector3d(0,0, radius));
+        frankx::Affine targetAffine;
+        calcAffineFromDOFPose(dofPose, targetAffine);
 
         // look at distance from current pose to and if over threshold seperate it in small steps
 //        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
@@ -156,6 +153,47 @@ namespace franka_pivot_control
         return true;
     }
 
+    void FrankaPivotControllerIntern::calcAffineFromDOFPose(
+            DOFPose &dofPose,
+            frankx::Affine &affine)
+    {
+        double radius = mDistanceEE2PP - dofPose.transZ;
+        //from DOFPose calculate Cartisian Affine
+        affine = mInitialPPAffine;
+        // or do it the other way around
+        affine.rotate(Eigen::AngleAxisd(
+                dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
+        affine.translate(Eigen::Vector3d(0,0, radius));
+    }
+
+    void FrankaPivotControllerIntern::calcDOFPoseFromAffine(
+            frankx::Affine affine,
+            DOFPose &dofPose, double &error)
+    {
+        dofPose.transZ =
+                (affine.translation() - mInitialPPAffine.translation()).norm();
+        double radius = mDistanceEE2PP - dofPose.transZ;
+        frankx::Affine entryPointAffine = affine;
+        entryPointAffine.translate(Eigen::Vector3d(0,0,-radius));
+        error = (mInitialPPAffine.translation() - entryPointAffine.translation()).norm();
+        frankx::Affine zeroAffine = affine;
+        zeroAffine.set_x(0);
+        zeroAffine.set_y(0);
+        zeroAffine.set_z(0);
+        // do we have to apply from left
+        frankx::Affine diffAffine = zeroAffine * mInitialOrientAffine.inverse();
+        //rotate around camera tilt
+        //diffAffine.rotate(Eigen::AngleAxisd());
+        Eigen::Vector3d angles = diffAffine.angles();
+        dofPose.pitch = angles.x();
+        dofPose.yaw = angles.y();
+        dofPose.roll = angles.z();
+    }
+
     bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
     {
         //TODO: calculate from mCurrentAffine
@@ -165,8 +203,12 @@ namespace franka_pivot_control
         // calculate trans_z by distance between pivot point and EndEffector
         // calculate pitch, yaw and roll
         //mCurrentAffine;
-
-        mCurrentDOFPose = mTargetDOFPose;
+        //read current Affine from MotionData
+        {
+            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
+            mCurrentAffine = mMotionData.last_pose;
+        }
+        calcDOFPoseFromAffine(mCurrentAffine, mCurrentDOFPose, mCurrentError);
         return true;
     }
 
