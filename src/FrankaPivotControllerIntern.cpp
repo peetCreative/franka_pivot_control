@@ -27,7 +27,6 @@ namespace franka_pivot_control
     FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
             double distanceEE2PP,
-            double maxWaypointDist,
             double cameraTilt):
             mRobot(robotHostname),
             mMotionData()
@@ -83,7 +82,6 @@ namespace franka_pivot_control
         mInitialOrientAffine.set_x(0);
         mInitialOrientAffine.set_y(0);
         mInitialOrientAffine.set_z(0);
-        mMaxWaypointDist = maxWaypointDist;
         //TODO: rotate with angles
         mYAxis = Eigen::Vector3d::UnitY();
         mZAxis = Eigen::Vector3d::UnitZ();

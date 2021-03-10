@@ -9,12 +9,11 @@ namespace franka_pivot_control
     FrankaPivotController::FrankaPivotController(
             std::string robotHostname,
             double distanceEE2PP,
-            double maxWaypointDist,
             double cameraTilt)
     {
         mController = new FrankaPivotControllerIntern(
                 robotHostname, distanceEE2PP,
-                maxWaypointDist, cameraTilt);
+                cameraTilt);
     }
 
     bool FrankaPivotController::setTargetDOFPose(DOFPose dofPose)

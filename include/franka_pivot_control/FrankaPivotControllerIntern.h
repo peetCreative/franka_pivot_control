@@ -37,7 +37,6 @@ namespace franka_pivot_control
         DOFBoundaries mDOFBoundaries;
         double mCurrentError {0};
         double mDistanceEE2PP;
-        double mMaxWaypointDist;
         Eigen::Vector3d mYAxis;
         Eigen::Vector3d mZAxis;
         void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
@@ -50,7 +49,6 @@ namespace franka_pivot_control
         FrankaPivotControllerIntern(
                 std::string robotHostname,
                 double distanceEE2PP,
-                double maxWaypointDist,
                 double cameraTilt);
         bool setTargetDOFPose(
                 DOFPose);
