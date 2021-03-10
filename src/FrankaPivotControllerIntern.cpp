@@ -8,6 +8,7 @@
 #include <thread>
 #include <iostream>
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace franka_pivot_control
 {
@@ -162,11 +163,11 @@ namespace franka_pivot_control
         affine = mInitialPPAffine;
         // or do it the other way around
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
+                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
+                dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
     }
 
@@ -174,36 +175,35 @@ namespace franka_pivot_control
             frankx::Affine affine,
             DOFPose &dofPose, double &error)
     {
+        frankx::Affine affine1 = affine;
+        affine1.translate(Eigen::Vector3d::UnitZ());
+        Eigen::ParametrizedLine<double, 3> line
+        = Eigen::ParametrizedLine<double, 3>::Through(
+                affine.translation(),
+                affine1.translation()
+                );
+        Eigen::Vector3d closestPoint =
+                line.projection(mInitialPPAffine.translation());
+        double distanceToClosestPoint =
+                (affine.translation() - closestPoint).norm();
         dofPose.transZ =
-                (affine.translation() - mInitialPPAffine.translation()).norm();
-        double radius = mDistanceEE2PP - dofPose.transZ;
-        frankx::Affine entryPointAffine = affine;
-        entryPointAffine.translate(Eigen::Vector3d(0,0,-radius));
-        error = (mInitialPPAffine.translation() - entryPointAffine.translation()).norm();
+                mDistanceEE2PP - distanceToClosestPoint;
+        error = (mInitialPPAffine.translation() - closestPoint).norm();
         frankx::Affine zeroAffine = affine;
         zeroAffine.set_x(0);
         zeroAffine.set_y(0);
         zeroAffine.set_z(0);
         // do we have to apply from left
-        frankx::Affine diffAffine = zeroAffine * mInitialOrientAffine.inverse();
-        //rotate around camera tilt
-        //diffAffine.rotate(Eigen::AngleAxisd());
+        frankx::Affine diffAffine = mInitialOrientAffine.inverse() * zeroAffine;
+        //TODO:rotate around camera tilt
         Eigen::Vector3d angles = diffAffine.angles();
-        dofPose.pitch = angles.x();
+        dofPose.pitch = angles.z();
         dofPose.yaw = angles.y();
-        dofPose.roll = angles.z();
+        dofPose.roll = angles.x();
     }
 
     bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
     {
-        //TODO: calculate from mCurrentAffine
-        //calculate point of shortest distance between -z axis of this transform and mPivotPoint
-        //if distance over threshhold throw error
-
-        // calculate trans_z by distance between pivot point and EndEffector
-        // calculate pitch, yaw and roll
-        //mCurrentAffine;
-        //read current Affine from MotionData
         {
             const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
             mCurrentAffine = mMotionData.last_pose;
