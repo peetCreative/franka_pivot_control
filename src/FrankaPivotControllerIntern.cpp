@@ -27,6 +27,7 @@ namespace franka_pivot_control
     FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
             double distanceEE2PP,
+            double dynamicRel,
             double cameraTilt):
             mRobot(robotHostname),
             mMotionData()
@@ -45,7 +46,7 @@ namespace franka_pivot_control
 //        mRobot.velocity_rel = 0.01;
 //        mRobot.acceleration_rel = 0.01;
 //        mRobot.jerk_rel = 0.01;
-        mRobot.setDynamicRel(0.05);
+        mRobot.setDynamicRel(dynamicRel);
         mRobot.setDefaultBehavior();
 
         // so the thread crashes and we can restart it properly

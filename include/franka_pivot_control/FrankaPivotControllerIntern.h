@@ -49,6 +49,7 @@ namespace franka_pivot_control
         FrankaPivotControllerIntern(
                 std::string robotHostname,
                 double distanceEE2PP,
+                double dynamicRel,
                 double cameraTilt);
         bool setTargetDOFPose(
                 DOFPose);
