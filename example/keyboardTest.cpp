@@ -18,6 +18,10 @@ int main(int argc, char *argv[])
     franka_pivot_control::FrankaPivotController pivoting(
             argv[1], distanceEE2PP,
             maxWaypointDist, cameraTilt);
+    if (!pivoting.isReady())
+    {
+        return 1;
+    }
     std::cout << "Fot pitch: use w and s" << std::endl;
     std::cout << "Fot yaw: use a and d" << std::endl;
     std::cout << "Fot roll: use r and t" << std::endl;
@@ -66,6 +70,9 @@ int main(int argc, char *argv[])
                 break;
             case 'g':
                 pose.transZ -= step;
+                break;
+            case '0':
+                //no movement
                 break;
             case 'q':
                 return 0;
