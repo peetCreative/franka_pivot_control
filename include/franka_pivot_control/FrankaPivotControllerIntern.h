@@ -38,8 +38,6 @@ namespace franka_pivot_control
         double mCurrentError {0};
         double mDistanceEE2PP;
         double mCameraTilt {0};
-        Eigen::Vector3d mYAxis;
-        Eigen::Vector3d mZAxis;
         void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
         void calcDOFPoseFromAffine(
                 frankx::Affine affine,

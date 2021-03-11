@@ -84,9 +84,6 @@ namespace franka_pivot_control
         mInitialOrientAffine.set_x(0);
         mInitialOrientAffine.set_y(0);
         mInitialOrientAffine.set_z(0);
-        //TODO: rotate with angles
-        mYAxis = Eigen::Vector3d::UnitY();
-        mZAxis = Eigen::Vector3d::UnitZ();
         mTargetWaypoint = movex::Waypoint(mCurrentAffine);
         mWaypointMotion = movex::WaypointMotion({mTargetWaypoint}, false);
         mMotionDataMutex = std::make_shared<std::mutex>();
@@ -165,9 +162,9 @@ namespace franka_pivot_control
         affine.rotate(Eigen::AngleAxisd(
                 -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, mZAxis).toRotationMatrix());
+                dofPose.roll, Eigen::Vector3d::UnitY()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.yaw, mYAxis).toRotationMatrix());
+                dofPose.yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
