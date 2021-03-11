@@ -63,6 +63,11 @@ namespace franka_pivot_control
 
         mCurrentAffine = mRobot.currentPose();
         mInitialEEAffine = mCurrentAffine;
+        if(!testCalc())
+        {
+            std::cout << "test calculation failed" << std::endl;
+            return;
+        }
         std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
         //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
@@ -200,6 +205,51 @@ namespace franka_pivot_control
         dofPose.pitch = angles.z();
         dofPose.yaw = angles.y();
         dofPose.roll = angles.x();
+    }
+
+    bool FrankaPivotControllerIntern::testCalc()
+    {
+        bool succ = true;
+        DOFPose initialDOFPose {0,0,0,0};
+        frankx::Affine affineCalc;
+        calcAffineFromDOFPose(initialDOFPose, affineCalc);
+        if (!affineCalc.isApprox(mInitialEEAffine))
+        {
+            std::cout << "DOF to Affine doesn't work" << std::endl;
+            succ = false;
+        }
+        else
+            std::cout << "DOF to Affine works" << std::endl;
+        std::vector<DOFPose> testDOFPoses {
+                {-0.3,0,0, 0},
+                {0,0.1,0, 0},
+                {0,0,0.2, 0},
+                {0,0,0, 0.2},
+                {0,0.1,0, 0.1},
+                {-1.0,1.0,0, 0.0},
+                {0.2,0.1,0, 0.1},
+        };
+        double error;
+        frankx::Affine testAffine;
+        DOFPose resultDOFPose;
+        for (auto it = testDOFPoses.begin(); it != testDOFPoses.end(); it++)
+        {
+            DOFPose testDOFPose = *it;
+            error = 0;
+            calcAffineFromDOFPose(testDOFPose, testAffine);
+            calcDOFPoseFromAffine(testAffine, resultDOFPose, error);
+            std::cout << "FROM:    " << testDOFPose.toString() << std::endl;
+            std::cout << "To:      " << testAffine.toString() << std::endl;
+            std::cout << "Back to: " << resultDOFPose.toString() << std::endl;
+            if (!testDOFPose.closeTo(resultDOFPose, 0.0001, 0.0001))
+            {
+                std::cout << "calculation failed" << std::endl;
+                succ = false;
+            }
+            std::cout << "------------------------" << std::endl;
+
+        }
+        return succ;
     }
 
     bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
