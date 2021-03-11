@@ -77,6 +77,7 @@ namespace franka_pivot_control
                 };
         mDofBoundariesReady = true;
         mDistanceEE2PP = distanceEE2PP;
+        mCameraTilt = cameraTilt;
         mInitialPPAffine = mInitialEEAffine;
         mInitialPPAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
         mInitialOrientAffine = mCurrentAffine;
@@ -162,9 +163,11 @@ namespace franka_pivot_control
         affine = mInitialPPAffine;
         // or do it the other way around
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
+                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
+                dofPose.roll, mZAxis).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                dofPose.yaw, mYAxis).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
@@ -194,7 +197,8 @@ namespace franka_pivot_control
         zeroAffine.set_z(0);
         // do we have to apply from left
         frankx::Affine diffAffine = mInitialOrientAffine.inverse() * zeroAffine;
-        //TODO:rotate around camera tilt
+        diffAffine.rotate(Eigen::AngleAxisd(
+                mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         Eigen::Vector3d angles = diffAffine.angles();
         dofPose.pitch = angles.z();
         dofPose.yaw = angles.y();
