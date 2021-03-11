@@ -63,11 +63,6 @@ namespace franka_pivot_control
 
         mCurrentAffine = mRobot.currentPose();
         mInitialEEAffine = mCurrentAffine;
-        if(!testCalc())
-        {
-            std::cout << "test calculation failed" << std::endl;
-            return;
-        }
         std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
         //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
@@ -89,6 +84,11 @@ namespace franka_pivot_control
         mInitialOrientAffine.set_x(0);
         mInitialOrientAffine.set_y(0);
         mInitialOrientAffine.set_z(0);
+        if(!testCalc())
+        {
+            std::cout << "test calculation failed" << std::endl;
+            return;
+        }
         mTargetWaypoint = movex::Waypoint(mCurrentAffine);
         mWaypointMotion = movex::WaypointMotion({mTargetWaypoint}, false);
         mMotionDataMutex = std::make_shared<std::mutex>();
@@ -165,13 +165,13 @@ namespace franka_pivot_control
         affine = mInitialPPAffine;
         // or do it the other way around
         affine.rotate(Eigen::AngleAxisd(
-                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, Eigen::Vector3d::UnitY()).toRotationMatrix());
-        affine.rotate(Eigen::AngleAxisd(
-                dofPose.yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix());
+                dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
     }
 
