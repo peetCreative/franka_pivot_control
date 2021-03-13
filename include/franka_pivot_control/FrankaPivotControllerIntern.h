@@ -40,6 +40,7 @@ namespace franka_pivot_control
         double mCameraTilt {0};
         Eigen::Vector3d mYAxis {Eigen::Vector3d::UnitY()};
         Eigen::Vector3d mZAxis {Eigen::Vector3d::UnitZ()};
+        bool mReady {false};
 
         void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
         void calcDOFPoseFromAffine(
@@ -60,6 +61,10 @@ namespace franka_pivot_control
                 DOFPose &laparoscopeDofPose);
         bool getDOFBoundaries(
                 DOFBoundaries &laparoscopeDofBoundaries);
+        bool isReady()
+        {
+            return mReady && PivotController::isReady();
+        };
     };
 }
 

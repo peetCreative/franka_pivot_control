@@ -97,6 +97,7 @@ namespace franka_pivot_control
         mMotionDataMutex = std::make_shared<std::mutex>();
         mMotionData.last_pose_lock = mMotionDataMutex;
         mMoveThread = std::thread(&FrankaPivotControllerIntern::move, this);
+        mReady = true;
     }
 
     //write helper function for factor
