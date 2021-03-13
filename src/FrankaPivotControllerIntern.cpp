@@ -78,6 +78,9 @@ namespace franka_pivot_control
         mDofBoundariesReady = true;
         mDistanceEE2PP = distanceEE2PP;
         mCameraTilt = cameraTilt;
+//        auto rotation = Eigen::AngleAxisd(-cameraTilt, Eigen::Vector3d::UnitZ());
+//        mYAxis = rotation * Eigen::Vector3d::UnitY();
+//        mZAxis = rotation * Eigen::Vector3d::UnitY();
         mInitialPPAffine = mInitialEEAffine;
         mInitialPPAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
         mInitialOrientAffine = mCurrentAffine;
@@ -164,14 +167,15 @@ namespace franka_pivot_control
         //from DOFPose calculate Cartisian Affine
         affine = mInitialPPAffine;
         // or do it the other way around
-        affine.rotate(Eigen::AngleAxisd(
-                dofPose.roll, Eigen::Vector3d::UnitZ()).toRotationMatrix());
-        affine.rotate(Eigen::AngleAxisd(
-                dofPose.yaw, Eigen::Vector3d::UnitY()).toRotationMatrix());
+//        affine.rotate(Eigen::AngleAxisd(
+//                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
-                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+                dofPose.yaw, mYAxis).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                dofPose.roll, mZAxis).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
     }
 
@@ -199,12 +203,27 @@ namespace franka_pivot_control
         zeroAffine.set_z(0);
         // do we have to apply from left
         frankx::Affine diffAffine = mInitialOrientAffine.inverse() * zeroAffine;
-        diffAffine.rotate(Eigen::AngleAxisd(
-                mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
-        Eigen::Vector3d angles = diffAffine.angles();
-        dofPose.pitch = angles.z();
-        dofPose.yaw = angles.y();
-        dofPose.roll = angles.x();
+        auto diffRotation = diffAffine.rotation().inverse();
+        double yaw1 = - std::asin(diffRotation(2,0));
+        double cy1 = std::cos(yaw1);
+        double yaw2 = M_PI - yaw1;
+        double cy2 = std::cos(yaw2);
+        if ( cy1 == 0 || cy2 == 0)
+        {
+            dofPose.pitch = 0;
+            dofPose.yaw = -yaw1;
+            dofPose.roll = 0;
+        }
+        else
+        {
+            double pitch = std::atan2(diffRotation(2,1)/cy1, diffRotation(2,2)/cy1);
+            double roll = std::atan2(diffRotation(1,0)/cy1, diffRotation(0,0)/cy1);
+
+            dofPose.pitch = -pitch;
+            dofPose.yaw = -yaw1;
+            dofPose.roll = -roll;
+
+        }
     }
 
     bool FrankaPivotControllerIntern::testCalc()
@@ -213,6 +232,7 @@ namespace franka_pivot_control
         DOFPose initialDOFPose {0,0,0,0};
         frankx::Affine affineCalc;
         calcAffineFromDOFPose(initialDOFPose, affineCalc);
+        std::cout << affineCalc.toString() << std::endl;
         if (!affineCalc.isApprox(mInitialEEAffine))
         {
             std::cout << "DOF to Affine doesn't work" << std::endl;
