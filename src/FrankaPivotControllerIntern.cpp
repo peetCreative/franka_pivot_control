@@ -105,8 +105,14 @@ namespace franka_pivot_control
     {
         mIsThreadRunning = true;
         std::cout << "start motion" << std::endl;
-        if(!mRobot.move(mWaypointMotion, mMotionData))
-            std::cout << "stop motion on libfranka error" << std::endl;
+        try {
+            if(!mRobot.move(mWaypointMotion, mMotionData))
+                std::cout << "stop motion on libfranka error" << std::endl;
+        } catch (franka::CommandException exception)
+        {
+            std::cout << "Something broke:" << exception.what() << std::endl;
+            mWaypointMotion.setNextWaypoints({});
+        }
 
         if (mMotionData.didBreak())
             std::cout << "MotionData did Break" << std::endl;
