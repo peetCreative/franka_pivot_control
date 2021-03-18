@@ -285,7 +285,16 @@ namespace franka_pivot_control
             const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
             mCurrentAffine = mMotionData.last_pose;
         }
-        calcDOFPoseFromAffine(mCurrentAffine, mCurrentDOFPose, mCurrentError);
+        DOFPose dofPose;
+        calcDOFPoseFromAffine(mCurrentAffine, dofPose, mCurrentError);
+        if(dofPose.closeTo(mTargetDOFPose, 0.001, 0.001))
+            mCurrentDOFPose = mTargetDOFPose;
+        else
+        {
+            if(!mMotionData.is_moving)
+                mWaypointMotion.setNextWaypoint(mTargetWaypoint);
+            mCurrentDOFPose = dofPose;
+        }
         return true;
     }
 
