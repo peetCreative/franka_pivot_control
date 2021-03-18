@@ -70,10 +70,10 @@ namespace franka_pivot_control
         //TODO: calculate limits from the joints limits
         mDOFBoundaries =
                 {
-                0.5, -0.5,
-                1.2,-1.2,
+                0.2, -0.5,
+                0.5,-0.5,
                 1.2, -1.2,
-                0.32, 0
+                0.04, -0.02
                 };
         mDofBoundariesReady = true;
         mDistanceEE2PP = distanceEE2PP;
