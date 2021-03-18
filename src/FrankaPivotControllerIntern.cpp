@@ -129,7 +129,7 @@ namespace franka_pivot_control
         }
         if (mTargetDOFPose == dofPose)
         {
-            std::cout << "nothing to do"<< std::endl;
+//            std::cout << "nothing to do"<< std::endl;
             return true;
         }
         std::cout << "setTargetDOFPose"<< std::endl
@@ -148,8 +148,8 @@ namespace franka_pivot_control
 //
 //
 //        std::vector<frankx::Waypoint> waypoints;
-        std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
-        std::cout << "targetAffine" << targetAffine.toString() << std::endl;
+//        std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
+//        std::cout << "targetAffine" << targetAffine.toString() << std::endl;
 
         mTargetWaypoint = movex::Waypoint(targetAffine);
         mWaypointMotion.setNextWaypoint(mTargetWaypoint);
