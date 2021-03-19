@@ -54,7 +54,7 @@ namespace franka_pivot_control
                 frankx::Affine affine,
                 DOFPose &dofPose, double &error);
         bool testCalc();
-        bool updateCurrentDOFPoseFromAffine();
+        bool updateCurrentPoses();
         void move();
     public:
         FrankaPivotControllerIntern(

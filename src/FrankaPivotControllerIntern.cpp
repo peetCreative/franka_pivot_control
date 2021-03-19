@@ -116,11 +116,7 @@ namespace franka_pivot_control
 
     bool FrankaPivotControllerIntern::setTargetDOFPose(DOFPose dofPose)
     {
-        //read current Affine from MotionData
-        {
-            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
-            mCurrentAffine = mMotionData.last_pose;
-        }
+        updateCurrentPoses();
         if (mTargetDOFPose == dofPose)
         {
 //            std::cout << "nothing to do"<< std::endl;
@@ -273,7 +269,7 @@ namespace franka_pivot_control
         return succ;
     }
 
-    bool FrankaPivotControllerIntern::updateCurrentDOFPoseFromAffine()
+    bool FrankaPivotControllerIntern::updateCurrentPoses()
     {
         {
             const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
@@ -296,7 +292,7 @@ namespace franka_pivot_control
     {
         if (!mDofPoseReady)
             return false;
-        updateCurrentDOFPoseFromAffine();
+        updateCurrentPoses();
         pose = mCurrentDOFPose;
         return true;
     }
@@ -333,7 +329,7 @@ namespace franka_pivot_control
     {
         if (!mDofPoseReady)
             return false;
-        updateCurrentDOFPoseFromAffine();
+        updateCurrentPoses();
         error = mCurrentError;
         return true;
     }
