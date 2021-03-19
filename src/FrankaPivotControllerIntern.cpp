@@ -122,9 +122,30 @@ namespace franka_pivot_control
 //            std::cout << "nothing to do"<< std::endl;
             return true;
         }
+
+        double rot_epsilon = 0.1;
+        double trans_z_epsilon = 0.05;
+        std::vector<frankx::Waypoint> waypoints {};
+        double diff_pitch = dofPose.pitch - mCurrentDOFPose.pitch;
+        double diff_yaw = dofPose.yaw - mCurrentDOFPose.yaw;
+        double diff_roll = dofPose.roll - mCurrentDOFPose.roll;
+        double diff_trans_z = dofPose.transZ - mCurrentDOFPose.transZ;
+        double diff_trans_z_abs = std::abs(diff_trans_z);
+
+        double biggest_rot_diff_abs =
+                std::max(std::abs(diff_pitch), std::max(std::abs(diff_yaw), std::abs(diff_roll)));
+        if (biggest_rot_diff_abs > rot_epsilon || diff_trans_z_abs > trans_z_epsilon)
+        {
+            std::cout << "don not move to fast" << std::endl;
+            int steps = std::max( biggest_rot_diff_abs/rot_epsilon, diff_trans_z_abs/trans_z_epsilon);
+            dofPose.pitch = mCurrentDOFPose.pitch + diff_pitch / steps;
+            dofPose.yaw = mCurrentDOFPose.yaw + diff_yaw / steps;
+            dofPose.roll = mCurrentDOFPose.roll + diff_roll / steps;
+            dofPose.transZ = mCurrentDOFPose.transZ + diff_trans_z / steps;
+        }
+
         std::cout << "setTargetDOFPose"<< std::endl
-            << dofPose.toString() << std::endl;
-        double radius = mDistanceEE2PP - dofPose.transZ;
+                  << dofPose.toString() << std::endl;
 
         //from DOFPose calculate Cartisian Affine
         frankx::Affine targetAffine;
