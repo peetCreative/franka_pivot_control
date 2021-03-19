@@ -9,11 +9,12 @@ namespace franka_pivot_control
     FrankaPivotController::FrankaPivotController(
             std::string robotHostname,
             double distanceEE2PP,
+            double distanceEE2Tip,
             double dynamicRel,
             double cameraTilt)
     {
         mController = new FrankaPivotControllerIntern(
-                robotHostname, distanceEE2PP,
+                robotHostname, distanceEE2PP, distanceEE2Tip,
                 dynamicRel, cameraTilt);
     }
 
@@ -30,6 +31,17 @@ namespace franka_pivot_control
     bool FrankaPivotController::getDOFBoundaries(DOFBoundaries &boundaries)
     {
         return mController->getDOFBoundaries(boundaries);
+    }
+
+    bool FrankaPivotController::getCurrentTipPose(
+            std::array<double, 3> &translation, std::array<double, 4> &rotation)
+    {
+        return mController->getCurrentTipPose(translation, rotation);
+    }
+
+    bool FrankaPivotController::getError(double &error)
+    {
+        return mController->getError(error);
     }
 
     bool FrankaPivotController::isReady()

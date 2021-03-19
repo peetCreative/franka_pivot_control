@@ -24,6 +24,7 @@ namespace franka_pivot_control
         FrankaPivotController(
                 std::string robotHostname,
                 double distanceEE2PP,
+                double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
         bool setTargetDOFPose(
@@ -32,6 +33,9 @@ namespace franka_pivot_control
                 DOFPose &pose);
         bool getDOFBoundaries(
                 DOFBoundaries &boundaries);
+        bool getCurrentTipPose(
+                std::array<double, 3> &translation, std::array<double, 4> &rotation);
+        bool getError(double &error);
         bool isReady();
 
     };

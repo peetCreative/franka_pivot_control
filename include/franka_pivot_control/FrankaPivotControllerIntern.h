@@ -34,10 +34,17 @@ namespace franka_pivot_control
         frankx::Affine mInitialOrientAffine;
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
-        DOFBoundaries mDOFBoundaries;
+        DOFBoundaries mDOFBoundaries
+                {
+                        0.2, -0.5,
+                        0.5,-0.5,
+                        1.2, -1.2,
+                        0.04, -0.02
+                };
         double mCurrentError {0};
         double mDistanceEE2PP;
-        double mCameraTilt {0};
+        double mDistanceEE2Tip;
+        double mCameraTilt;
         Eigen::Vector3d mYAxis {Eigen::Vector3d::UnitY()};
         Eigen::Vector3d mZAxis {Eigen::Vector3d::UnitZ()};
         bool mReady {false};
@@ -53,6 +60,7 @@ namespace franka_pivot_control
         FrankaPivotControllerIntern(
                 std::string robotHostname,
                 double distanceEE2PP,
+                double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
         bool setTargetDOFPose(
@@ -61,6 +69,9 @@ namespace franka_pivot_control
                 DOFPose &laparoscopeDofPose);
         bool getDOFBoundaries(
                 DOFBoundaries &laparoscopeDofBoundaries);
+        bool getCurrentTipPose(
+                std::array<double, 3> &translation, std::array<double, 4> &rotation);
+        bool getError(double &error);
         bool isReady()
         {
             return mReady && PivotController::isReady();

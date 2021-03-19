@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
     float step = 0.05;
     //TODO: guard exceptions
     franka_pivot_control::FrankaPivotController pivoting(
-            argv[1], distanceEE2PP,
+            argv[1], distanceEE2PP, distanceEE2PP,
             maxWaypointDist, cameraTilt);
     if (!pivoting.isReady())
     {

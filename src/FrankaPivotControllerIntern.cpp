@@ -27,10 +27,14 @@ namespace franka_pivot_control
     FrankaPivotControllerIntern::FrankaPivotControllerIntern(
             std::string robotHostname,
             double distanceEE2PP,
+            double distanceEE2Tip,
             double dynamicRel,
             double cameraTilt):
             mRobot(robotHostname),
-            mMotionData()
+            mMotionData(),
+            mDistanceEE2PP(distanceEE2PP),
+            mDistanceEE2Tip(distanceEE2Tip),
+            mCameraTilt(cameraTilt)
     {
         std::cout << "Initializing Panda" << std::endl;
         try {
@@ -67,17 +71,7 @@ namespace franka_pivot_control
         //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
         mDofPoseReady = true;
-        //TODO: calculate limits from the joints limits
-        mDOFBoundaries =
-                {
-                0.2, -0.5,
-                0.5,-0.5,
-                1.2, -1.2,
-                0.04, -0.02
-                };
         mDofBoundariesReady = true;
-        mDistanceEE2PP = distanceEE2PP;
-        mCameraTilt = cameraTilt;
 //        auto rotation = Eigen::AngleAxisd(-cameraTilt, Eigen::Vector3d::UnitZ());
 //        mYAxis = rotation * Eigen::Vector3d::UnitY();
 //        mZAxis = rotation * Eigen::Vector3d::UnitY();
@@ -312,6 +306,35 @@ namespace franka_pivot_control
         if (!mDofBoundariesReady)
             return false;
         boundaries = mDOFBoundaries;
+        return true;
+    }
+
+    bool FrankaPivotControllerIntern::getCurrentTipPose(
+            std::array<double, 3> &translation, std::array<double, 4> &rotation)
+    {
+        if (!mDofPoseReady)
+            return false;
+        {
+            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
+            mCurrentAffine = mMotionData.last_pose;
+        }
+        frankx::Affine cameraTipPoseAffine = mCurrentAffine;
+        cameraTipPoseAffine.translate({0,0,-mDistanceEE2Tip});
+        Eigen::Vector3d translationE = cameraTipPoseAffine.translation();
+        translation = {translationE.x(), translationE.y(), translationE.z()};
+        rotation = {cameraTipPoseAffine.q_w(),
+                    cameraTipPoseAffine.q_x(),
+                    cameraTipPoseAffine.q_y(),
+                    cameraTipPoseAffine.q_z()};
+        return true;
+    }
+
+    bool FrankaPivotControllerIntern::getError(double &error)
+    {
+        if (!mDofPoseReady)
+            return false;
+        updateCurrentDOFPoseFromAffine();
+        error = mCurrentError;
         return true;
     }
 }
