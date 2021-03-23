@@ -175,8 +175,8 @@ namespace franka_pivot_control
         //from DOFPose calculate Cartisian Affine
         affine = mInitialPPAffine;
         // or do it the other way around
-//        affine.rotate(Eigen::AngleAxisd(
-//                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
 
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.pitch, Eigen::Vector3d::UnitX()).toRotationMatrix());
@@ -184,6 +184,8 @@ namespace franka_pivot_control
                 dofPose.yaw, mYAxis).toRotationMatrix());
         affine.rotate(Eigen::AngleAxisd(
                 dofPose.roll, mZAxis).toRotationMatrix());
+        affine.rotate(Eigen::AngleAxisd(
+                -mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         affine.translate(Eigen::Vector3d(0,0, radius));
     }
 
@@ -209,9 +211,14 @@ namespace franka_pivot_control
         zeroAffine.set_x(0);
         zeroAffine.set_y(0);
         zeroAffine.set_z(0);
-        // do we have to apply from left
-        frankx::Affine diffAffine = mInitialOrientAffine.inverse() * zeroAffine;
-        auto diffRotation = diffAffine.rotation().inverse();
+        frankx::Affine a = mInitialOrientAffine;
+        a.rotate(Eigen::AngleAxisd(
+                mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+        zeroAffine.rotate(Eigen::AngleAxisd(
+                mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
+        frankx::Affine diffAffine = a.inverse() * zeroAffine;
+        frankx::Affine b =  diffAffine.inverse();
+        auto diffRotation = b.rotation();
         double yaw1 = - std::asin(diffRotation(2,0));
         double cy1 = std::cos(yaw1);
         double yaw2 = M_PI - yaw1;
