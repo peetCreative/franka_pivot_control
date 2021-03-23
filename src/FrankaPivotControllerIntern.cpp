@@ -68,7 +68,6 @@ namespace franka_pivot_control
         mCurrentAffine = mRobot.currentPose();
         mInitialEEAffine = mCurrentAffine;
         std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
-        //TODO: set mCurrentDOFPoseReady mDOFBoundariesReady ready
         mCurrentDOFPose = {0,0,0,0};
         mDofPoseReady = true;
         mDofBoundariesReady = true;
@@ -110,7 +109,6 @@ namespace franka_pivot_control
 
         if (mMotionData.didBreak())
             std::cout << "MotionData did Break" << std::endl;
-        //TODO: catch errors and return false
         mIsThreadRunning = false;
     }
 
@@ -151,14 +149,6 @@ namespace franka_pivot_control
         frankx::Affine targetAffine;
         calcAffineFromDOFPose(dofPose, targetAffine);
 
-        // look at distance from current pose to and if over threshold seperate it in small steps
-//        Eigen::Vector3d path = targetAffine.translation() - mCurrentAffine.translation();
-//        double pathLength = path.norm();
-//        int numWaypoints = std::ceil(pathLength / mMaxWaypointDist);
-//        Eigen::Vector3d waypointDist = path/numWaypoints;
-//
-//
-//        std::vector<frankx::Waypoint> waypoints;
 //        std::cout << "currentAffine" << mCurrentAffine.toString() << std::endl;
 //        std::cout << "targetAffine" << targetAffine.toString() << std::endl;
 
