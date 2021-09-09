@@ -25,6 +25,7 @@ namespace franka_pivot_control
         frankx::Robot mRobot;
         std::thread mMoveThread;
         bool mIsThreadRunning {false};
+        bool mPivoting {false};
         movex::WaypointMotion mWaypointMotion;
         movex::Waypoint mTargetWaypoint;
         std::shared_ptr<std::mutex> mMotionDataMutex;
@@ -65,6 +66,10 @@ namespace franka_pivot_control
                 double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
+        bool startPivoting();
+        bool stopPivoting();
+        bool moveJointSpace(std::array<double, 7> target);
+        bool moveCartesianZ(float z);
         bool setTargetDOFPose(
                 DOFPose);
         bool getCurrentDOFPose(

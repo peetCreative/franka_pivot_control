@@ -18,6 +18,26 @@ namespace franka_pivot_control
                 dynamicRel, cameraTilt);
     }
 
+    bool FrankaPivotController::startPivoting()
+    {
+        return mController->startPivoting();
+    }
+
+    bool FrankaPivotController::stopPivoting()
+    {
+        return mController->stopPivoting();
+    }
+
+    bool FrankaPivotController::moveCartesianZ(float z)
+    {
+        return mController->moveCartesianZ(z);
+    }
+
+    bool FrankaPivotController::moveJointSpace(std::array<double, 7> target)
+    {
+        return mController->moveJointSpace(target);
+    }
+
     bool FrankaPivotController::setTargetDOFPose(DOFPose dofPose)
     {
         return mController->setTargetDOFPose(dofPose);

@@ -114,8 +114,45 @@ namespace franka_pivot_control
         mIsThreadRunning = false;
     }
 
+    bool FrankaPivotControllerIntern::startPivoting()
+    {
+        mWaypointMotion.return_when_finished = false;
+        mCurrentDOFPose = {0,0,0,0};
+        mReady = true;
+        mPivoting = true;
+        return true;
+    }
+
+    bool FrankaPivotControllerIntern::stopPivoting()
+    {
+        mWaypointMotion.finish();
+        mReady = false;
+        mPivoting = false;
+        return true;
+    }
+
+    bool FrankaPivotControllerIntern::moveCartesianZ(float z)
+    {
+        if (mPivoting)
+            return false;
+        movex::Affine targetAffine = mCurrentAffine;
+        targetAffine.translate({0,0,z});
+        movex::Waypoint targetWaypoint(targetAffine);
+        movex::WaypointMotion targetWaypointMotion({targetWaypoint});
+        return mRobot.move(targetWaypointMotion);
+    }
+
+    bool FrankaPivotControllerIntern::moveJointSpace(std::array<double, 7> target)
+    {
+        if (mPivoting)
+            return false;
+        return mRobot.move(movex::JointMotion(target));;
+    }
+
     bool FrankaPivotControllerIntern::setTargetDOFPose(DOFPose dofPose)
     {
+        if (!mPivoting)
+            return false;
         updateCurrentPoses();
         if (mTargetDOFPose == dofPose)
         {

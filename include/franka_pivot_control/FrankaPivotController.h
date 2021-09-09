@@ -27,6 +27,10 @@ namespace franka_pivot_control
                 double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
+        bool startPivoting();
+        bool stopPivoting();
+        bool moveJointSpace(std::array<double, 7> target);
+        bool moveCartesianZ(float z);
         bool setTargetDOFPose(
                 DOFPose);
         bool getCurrentDOFPose(
