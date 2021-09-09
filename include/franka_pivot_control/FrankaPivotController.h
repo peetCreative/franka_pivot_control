@@ -36,6 +36,7 @@ namespace franka_pivot_control
         bool getCurrentTipPose(
                 std::array<double, 3> &translation, std::array<double, 4> &rotation);
         bool getError(double &error);
+        bool getFrankaError(std::string &frankaError);
         bool isReady();
 
     };

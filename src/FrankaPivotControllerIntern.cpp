@@ -100,10 +100,12 @@ namespace franka_pivot_control
         std::cout << "start motion" << std::endl;
         try {
             if(!mRobot.move(mWaypointMotion, mMotionData))
+            {
+                mFrankaErrors.push_back("libfrankaerror");
                 std::cout << "stop motion on libfranka error" << std::endl;
+            }
         } catch (franka::CommandException exception)
         {
-            std::cout << "Something broke:" << exception.what() << std::endl;
             mWaypointMotion.setNextWaypoints({});
         }
 
@@ -350,5 +352,17 @@ namespace franka_pivot_control
         updateCurrentPoses();
         error = mCurrentError;
         return true;
+    }
+
+    bool FrankaPivotControllerIntern::getFrankaError(std::string &frankaError)
+    {
+        if (!mFrankaErrors.empty())
+        {
+            frankaError = mFrankaErrors.front();
+            mFrankaErrors.pop_front();
+            return true;
+        }
+        else
+            return false;
     }
 }

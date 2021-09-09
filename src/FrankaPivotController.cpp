@@ -44,6 +44,11 @@ namespace franka_pivot_control
         return mController->getError(error);
     }
 
+    bool FrankaPivotController::getFrankaError(std::string &frankaError)
+    {
+        return mController->getFrankaError(frankaError);
+    }
+
     bool FrankaPivotController::isReady()
     {
         return mController->isReady();

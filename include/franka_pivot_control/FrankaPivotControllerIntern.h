@@ -11,6 +11,7 @@
 
 #include "frankx/frankx.hpp"
 #include <memory>
+#include <deque>
 #include <Eigen/Core>
 
 using namespace pivot_control_messages;
@@ -48,6 +49,7 @@ namespace franka_pivot_control
         Eigen::Vector3d mYAxis {Eigen::Vector3d::UnitY()};
         Eigen::Vector3d mZAxis {Eigen::Vector3d::UnitZ()};
         bool mReady {false};
+        std::deque<std::string> mFrankaErrors {};
 
         void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
         void calcDOFPoseFromAffine(
@@ -72,6 +74,7 @@ namespace franka_pivot_control
         bool getCurrentTipPose(
                 std::array<double, 3> &translation, std::array<double, 4> &rotation);
         bool getError(double &error);
+        bool getFrankaError(std::string &frankaError);
         bool isReady()
         {
             return mReady && PivotController::isReady();
