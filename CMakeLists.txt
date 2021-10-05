@@ -40,8 +40,7 @@ SET(franka_pivot_control_LIB ${PROJECT_NAME})
 
 add_library(
     ${franka_pivot_control_LIB} SHARED
-        src/FrankaPivotController.cpp
-        src/FrankaPivotControllerIntern.cpp)
+        src/FrankaPivotController.cpp)
 
 add_executable(keyboardTest
         example/keyboardTest.cpp)
