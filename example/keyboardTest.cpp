@@ -15,8 +15,10 @@ int main(int argc, char *argv[])
     float cameraTilt = -0.52359;
     float step = 0.05;
     //TODO: guard exceptions
+    std::string ip(argv[1]);
+    std::cout << "Starting Franka Panda with IP:" << ip << std::endl;
     franka_pivot_control::FrankaPivotController pivoting(
-            argv[1], distanceEE2PP, distanceEE2PP,
+            ip, distanceEE2PP, distanceEE2PP,
             maxWaypointDist, cameraTilt);
     if (!pivoting.isReady())
     {

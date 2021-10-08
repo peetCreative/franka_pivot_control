@@ -37,7 +37,6 @@ namespace franka_pivot_control
             mDistanceEE2Tip(distanceEE2Tip),
             mCameraTilt(cameraTilt)
     {
-        std::cout << "Initializing Panda" << std::endl;
         try {
             mRobot.automaticErrorRecovery();
         }
