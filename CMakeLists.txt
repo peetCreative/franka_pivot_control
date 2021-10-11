@@ -26,7 +26,11 @@ find_package(Franka 0.8 REQUIRED)
 message("Franka: ${Franka_FOUND}")
 message("Include: ${Franka_VERSION}")
 
-add_subdirectory(pivot_control_messages)
+if (TARGET pivot_control_messages)
+    message("found pivot_control_messages")
+else()
+    add_subdirectory(pivot_control_messages)
+endif()
 
 include_directories(
         "${frankx_INCLUDE_DIRS}"
