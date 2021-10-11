@@ -5,14 +5,16 @@
 #ifndef FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_H
 #define FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_H
 
-#ifdef FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_IMPL
 #include "frankx/frankx.hpp"
-#include <Eigen/Core>
-#endif
-
 #include "PivotControlMessages.h"
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <thread>
 #include <memory>
 #include <deque>
+#include <iostream>
+#include <mutex>
 
 using namespace pivot_control_messages;
 
@@ -25,7 +27,6 @@ namespace franka_pivot_control
     class FrankaPivotController : public pivot_control_messages::PivotController
     {
     private:
-#ifdef FRANKA_PIVOT_CONTROL_PIVOT_CONTROL_IMPL
         frankx::Robot mRobot;
         std::thread mMoveThread;
         bool mIsThreadRunning {false};
@@ -69,7 +70,6 @@ namespace franka_pivot_control
         bool updateCurrentPoses();
         //! \brief Function to be run in a seperate thread to run the command loop
         void move();
-#endif
     public:
         /*! \brief Constructor of the Interface class
          *
