@@ -3,6 +3,40 @@
 #include "PivotControlMessages.h"
 
 #include <iostream>
+#include <string>
+#include <vector>
+
+bool parse_input(pivot_control_messages::DOFPose& pose, const std::string &in)
+{
+    std::stringstream ss(in.substr(1,in.length()));
+    std::string item;
+    int i = 0;
+    double d;
+    while (std::getline(ss, item, ',')) {
+        try {
+            d = std::stod(item);
+        }
+        catch(...) {
+            return false;
+        };
+        switch(i)
+        {
+            case 0:
+                pose.pitch = d;
+                break;
+            case 1:
+                pose.yaw = d;
+                break;
+            case 2:
+                pose.roll = d;
+                break;
+            case 3:
+                pose.transZ = d;
+                break;
+        }
+        i++;
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -11,7 +45,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     float distanceEE2PP = 0.2;
-    float maxWaypointDist = 0.01;
+    float maxWaypointDist = 0.2;
     float cameraTilt = -0.52359;
     float step = 0.05;
     //TODO: guard exceptions
@@ -24,11 +58,14 @@ int main(int argc, char *argv[])
     {
         return 1;
     }
+    pivoting.startPivoting();
     std::cout << "Fot pitch: use w and s" << std::endl;
     std::cout << "Fot yaw: use a and d" << std::endl;
     std::cout << "Fot roll: use r and t" << std::endl;
     std::cout << "Fot transZ: use f and g" << std::endl;
     std::cout << "To Stop: use q" << std::endl;
+    std::cout << "To Go To a specific position: use b<pitch>,<yaw>,<roll>,<trans_z>" << std::endl;
+    std::cout << "To set speed: use h<speed_val> where speed_val between 0 and 1" << std::endl;
     std::cout << "Robot will move after you press any key." << std::endl;
     std::cout << "Hold the safety Button close." << std::endl;
     bool quit = false;
@@ -75,6 +112,29 @@ int main(int argc, char *argv[])
                 break;
             case '0':
                 //no movement
+                pose.pitch = 0;
+                pose.yaw = 0;
+                pose.roll = 0;
+                pose.transZ = 0;
+                break;
+            case 'b':
+                parse_input(pose, in);
+                break;
+            case 'h':
+                try {
+                    double d = std::stod(in.substr(1, in.length()));
+                    pivoting.stopPivoting();
+                    if (!pivoting.setSpeed(d))
+                        std::cout << "new speed is " << d << std::endl;
+                    else
+                        std::cout << "wrong speed " << d << std::endl;
+                    pivoting.startPivoting();
+                }
+                catch (...)
+                {
+                    std::cout << "Wrong input for speed" << std::endl;
+                    return 1;
+                }
                 break;
             case 'q':
                 return 0;
