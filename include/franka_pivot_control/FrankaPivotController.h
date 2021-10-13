@@ -29,6 +29,7 @@ namespace franka_pivot_control
     private:
         frankx::Robot mRobot;
         std::thread mMoveThread;
+        std::thread mPivotThread;
         bool mIsThreadRunning {false};
         bool mPivoting {false};
         movex::WaypointMotion mWaypointMotion;
@@ -41,6 +42,7 @@ namespace franka_pivot_control
         frankx::Affine mInitialOrientAffine;
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
+        std::mutex  mTargetCurrentMutex;
         DOFBoundaries mDOFBoundaries
                 {
                         0.2, -0.5,
@@ -67,9 +69,10 @@ namespace franka_pivot_control
         //! \brief Test function for calcAffineFromDOFPose
         bool testCalc();
         //! \brief Function to be run in a seperate thread to run the command loop
-        bool updateCurrentPoses();
+        DOFPose updateCurrentPoses();
         //! \brief Function to be run in a seperate thread to run the command loop
         void move();
+        void pivot();
     public:
         /*! \brief Constructor of the Interface class
          *
@@ -85,12 +88,21 @@ namespace franka_pivot_control
                 double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
+        //! \brief Set speed Value between 0 and 1
+        /*! This function set the speed of the Franka Emika Robot
+         *
+         * @param dynamicRel Value between 0 (min) and 1 (max)
+         * @return success
+         */
+        bool setSpeed(float dynamicRel);
         //! \brief Start Pivoting from this pose the robot is currently in.
         /*! this will start the run-function thread.
          *
+         * @param startDOFPose DOFPose to start from
          * @return Success, if the robot is used return false
          */
-        bool startPivoting();
+        bool startPivoting(
+                pivot_control_messages::DOFPose startDOFPose = {0, 0, 0, 0});
         //! \brief Stop Pivoting release the robot
         /*! stops the run-function thread
          *
