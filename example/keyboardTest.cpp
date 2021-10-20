@@ -36,6 +36,7 @@ bool parse_input(pivot_control_messages::DOFPose& pose, const std::string &in)
         }
         i++;
     }
+    return true;
 }
 
 int main(int argc, char *argv[])
@@ -45,20 +46,20 @@ int main(int argc, char *argv[])
         return -1;
     }
     float distanceEE2PP = 0.2;
-    float maxWaypointDist = 0.2;
+    float dynamicRel = 0.1;
     float cameraTilt = -0.52359;
-    float step = 0.05;
+    float step = 0.1;
     //TODO: guard exceptions
     std::string ip(argv[1]);
     std::cout << "Starting Franka Panda with IP:" << ip << std::endl;
     franka_pivot_control::FrankaPivotController pivoting(
             ip, distanceEE2PP, distanceEE2PP,
-            maxWaypointDist, cameraTilt);
+            dynamicRel, cameraTilt);
+    pivoting.startPivoting();
     if (!pivoting.isReady())
     {
         return 1;
     }
-    pivoting.startPivoting();
     std::cout << "Fot pitch: use w and s" << std::endl;
     std::cout << "Fot yaw: use a and d" << std::endl;
     std::cout << "Fot roll: use r and t" << std::endl;
