@@ -26,20 +26,19 @@ namespace franka_pivot_control
      */
     class FrankaPivotController : public pivot_control_messages::PivotController
     {
-    private:
-        frankx::Robot mRobot;
+    protected:
+        std::unique_ptr<frankx::Robot> mRobot;
         std::thread mMoveThread;
         std::thread mPivotThread;
-        bool mIsThreadRunning {false};
+        bool mIsRobotThreadRunning {false};
         bool mPivoting {false};
         movex::WaypointMotion mWaypointMotion;
         movex::Waypoint mTargetWaypoint;
         std::shared_ptr<std::mutex> mMotionDataMutex;
         movex::MotionData mMotionData;
         frankx::Affine mCurrentAffine;
-        frankx::Affine mInitialEEAffine;
+        //! just to evaluate the calcXtoY functions
         frankx::Affine mInitialPPAffine;
-        frankx::Affine mInitialOrientAffine;
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
         std::mutex  mTargetCurrentMutex;
@@ -59,15 +58,8 @@ namespace franka_pivot_control
         bool mReady {false};
         std::deque<std::string> mFrankaErrors {};
 
-        //! \brief Function to calculate the target Affine pose from the DOFPose
-        void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
-        //! \brief Function to calculate the DOFPose from the franka current pose
-        void calcDOFPoseFromAffine(
-                frankx::Affine affine,
-                DOFPose &dofPose, double &error);
-
         //! \brief Test function for calcAffineFromDOFPose
-        bool testCalc();
+        bool testCalc(movex::Affine initialEEAffine);
         //! \brief Function to be run in a seperate thread to run the command loop
         DOFPose updateCurrentPoses();
         //! \brief Function to be run in a seperate thread to run the command loop
@@ -165,6 +157,14 @@ namespace franka_pivot_control
         //! \brief indicate if the controller is ready to pivot
         //! See [PivotController::isReady](https://peetcreative.github.io/franka_pivot_control/classpivot__control__messages_1_1_pivot_controller.html)
         bool isReady();
+
+        //! \brief Function to calculate the target Affine pose from the DOFPose
+        void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
+        //! \brief Function to calculate the DOFPose from the affine
+        void calcDOFPoseFromAffine(
+                frankx::Affine affine,
+                DOFPose &dofPose, double &error);
+
     };
 }
 

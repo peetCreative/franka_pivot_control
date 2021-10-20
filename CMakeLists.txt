@@ -17,6 +17,9 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 # which point to directories outside the build tree to the install RPATH
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+option(BUILD_TEST "Build tests" ON)
+set(TEST_ROBOT_HOSTNAME CACHE STRING "Hostname of Franka Emika Panda to run tests on")
+set(frankx_ROOT "" CACHE PATH "frankx root")
 
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 message("Found Eigen Version: ${Eigen3_VERSION}")
@@ -57,6 +60,23 @@ target_link_libraries(${franka_pivot_control_LIB}
 
 target_link_libraries(keyboardTest
     ${franka_pivot_control_LIB})
+
+
+if (BUILD_TEST)
+    enable_testing()
+    include(GoogleTest)
+    add_executable(googleTest
+        tests/googleTest.cpp)
+    target_link_libraries(googleTest
+        ${franka_pivot_control_LIB}
+        gtest
+        gtest_main
+        pthread )
+    gtest_add_tests(TARGET googleTest
+            TEST_SUFFIX .noArgs
+            TEST_LIST noArgsTest)
+    target_compile_definitions(googleTest PUBLIC TEST_ROBOT_HOSTNAME="${TEST_ROBOT_HOSTNAME}")
+endif()
 
 install( TARGETS ${franka_pivot_control_LIB}
         DESTINATION lib)
