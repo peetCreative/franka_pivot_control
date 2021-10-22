@@ -255,7 +255,7 @@ namespace franka_pivot_control
         if (mPivoting)
             return false;
         movex::Affine targetAffine = mCurrentAffine;
-        targetAffine.translate({0,0,z});
+        targetAffine.translate({0,0, -z});
         movex::Waypoint targetWaypoint(targetAffine);
         movex::WaypointMotion targetWaypointMotion({targetWaypoint});
         return mRobot->move(targetWaypointMotion);
