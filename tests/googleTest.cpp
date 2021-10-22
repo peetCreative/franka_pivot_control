@@ -90,21 +90,21 @@ std::stringstream AffineToString(movex::Affine a)
 
 struct RobotMoveTest : RobotTest
 {
-    constexpr static std::array<double, 7> goodJointPose {-0.01981415, -1.036409, -0.05556389, -2.023421, 0.01193091, 1.796796, 1.770148};
+    constexpr static std::array<double, 7> goodJointPositions {-0.01981415, -1.036409, -0.05556389, -2.023421, 0.01193091, 1.796796, 1.770148};
     RobotMoveTest()
     {
     }
 
-    void testInitialPosition()
+    void testInitialPosition(std::array<double, 7> jointPositions = goodJointPositions)
     {
         ASSERT_TRUE(mReady);
-        moveJointSpace(goodJointPose);
+        moveJointSpace(jointPositions);
         std::this_thread::sleep_for(5s);
         //Check we succeded moving to initial Pose
-        auto it1 = goodJointPose.begin();
+        auto it1 = jointPositions.begin();
         auto l2 = mRobot->currentJointPositions();
         auto it2 = l2.begin();
-        for(; it1 != goodJointPose.end() && it2 != l2.end(); ++it1, ++it2)
+        for(; it1 != jointPositions.end() && it2 != l2.end(); ++it1, ++it2)
         {
             // should be smalle than some degrees
             EXPECT_LT(it1 - it2, 0.01);
@@ -113,7 +113,7 @@ struct RobotMoveTest : RobotTest
 
     ~RobotMoveTest() {
         //GOOD INIITIAL POSE
-        moveJointSpace(goodJointPose);
+        moveJointSpace(goodJointPositions);
     }
 };
 
@@ -122,50 +122,80 @@ TEST_F(RobotMoveTest, MoveToInitialPosition)
     testInitialPosition();
 }
 
-struct RobotCartesianTest : RobotMoveTest, testing::WithParamInterface<frankx::Affine> {
+struct RobotCartesianTest : RobotMoveTest, testing::WithParamInterface<double> {
 };
 
-//TODO: test instead
 TEST_P(RobotCartesianTest, MoveCartesian)
 {
     testInitialPosition();
-    frankx::Affine target = GetParam();
-    movex::Waypoint targetWaypoint(target);
-    movex::WaypointMotion targetWaypointMotion({targetWaypoint});
-    mRobot->move(targetWaypointMotion);
+    frankx::Affine start = mRobot->currentPose();
+    double dist = GetParam();
+    frankx::Affine target = start;
+    target.translate({0,0, -dist});
+    moveCartesianZ(dist);
     std::this_thread::sleep_for(5s);
     frankx::Affine current = mRobot->currentPose();
     testAffineApprox(current, target);
 }
 
-INSTANTIATE_TEST_SUITE_P(Default, RobotCartesianTest, testing::Values(
-            frankx::Affine(0.1423738, -0.02001232, 0.7518987, -0.4309479, -0.3938808, -0.01671598, 0.8117033),
-            frankx::Affine(0.09816521, -0.2317149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114),
-            frankx::Affine(0.09816521, -0.2417149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)
-        ));
+INSTANTIATE_TEST_SUITE_P(Default, RobotCartesianTest,
+                         testing::Values(0.1, 0.05, -0.1));
 
-struct RobotJointMotionTest : RobotMoveTest, testing::WithParamInterface<std::array<double, 7>> {
+typedef std::pair<std::array<double, 7>, frankx::Affine> correspondingPoses;
+
+struct RobotJointMotionTest : RobotMoveTest, testing::WithParamInterface<correspondingPoses> {
 };
 
-//TODO: test instead
 TEST_P(RobotJointMotionTest, MoveJointPositions)
 {
     testInitialPosition();
-    std::array<double, 7> target = GetParam();
-    moveJointSpace(target);
+    correspondingPoses target = GetParam();
+    moveJointSpace(target.first);
     std::this_thread::sleep_for(2s);
     std::array<double, 7> current = mRobot->currentJointPositions();
     for(int i = 0; i < 7; i++)
     {
-        EXPECT_LT(std::abs(target.at(i) - current.at(i)) , epsilon);
+        EXPECT_LT(std::abs(target.first.at(i) - current.at(i)) , epsilon);
     }
+    std::array<double, 16> currentPose = mRobot->currentPose().array();
+    std::array<double, 16> targetPose = target.second.array();
+    for(int i = 0; i < 16; i++)
+    {
+        EXPECT_LT(std::abs(targetPose[i] - currentPose[i]) , epsilon);
+    }
+
 }
 
 INSTANTIATE_TEST_SUITE_P(Default, RobotJointMotionTest, testing::Values(
-            std::array<double, 7>({-0.09110587, -1.281957, -0.1430118, -2.258051, -0.05919013, 1.794252, 2.516949}),
-            std::array<double, 7>({-0.3715936, -1.237756, -0.05479175, -2.274433, 0.5705662, 1.583464, 1.133754}),
-            std::array<double, 7>({-0.02132828, -1.337411, -0.5387088, -2.298805, 0.01366354, 1.794611, 1.597896})
-        ));
+    correspondingPoses({std::array<double, 7>({-0.09110587, -1.281957, -0.1430118, -2.258051, -0.05919013, 1.794252, 2.516949}),
+        frankx::Affine(0.1423738, -0.02001232, 0.7518987, -0.4309479, -0.3938808, -0.01671598, 0.8117033)}),
+    correspondingPoses({std::array<double, 7>({-0.3715936, -1.237756, -0.05479175, -2.274433, 0.5705662, 1.583464, 1.133754}),
+        frankx::Affine(0.09816521, -0.2317149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)}),
+    correspondingPoses({std::array<double, 7>({-0.02132828, -1.337411, -0.5387088, -2.298805, 0.01366354, 1.794611, 1.597896}),
+        frankx::Affine(0.09816521, -0.2417149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)})
+));
+
+struct RobotJointMotionTest : RobotMoveTest, testing::WithParamInterface<correspondingPoses> {
+};
+
+TEST_F(RobotMoveTest, TestPivoting)
+{
+    //TODO: find better initial Pose
+    testInitialPosition({-0.09110587, -1.281957, -0.1430118, -2.258051, -0.05919013, 1.794252, 2.516949});
+    // move to good ausgang position
+
+    // for loop to move around meassuring the time needed to move to this position
+    startPivoting();
+
+    for()
+    {
+
+    }
+    // check that the first joint does not move to far
+
+
+
+}
 
 int main(int argc, char *argv[])
 {
