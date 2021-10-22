@@ -24,7 +24,6 @@ set(frankx_ROOT "" CACHE PATH "frankx root")
 find_package(Eigen3 3.3.7 REQUIRED NO_MODULE)
 message("Found Eigen Version: ${Eigen3_VERSION}")
 message("Include: ${Eigen3_INCLUDE_DIRS}")
-find_package( frankx REQUIRED )
 find_package(Franka 0.8 REQUIRED)
 message("Franka: ${Franka_FOUND}")
 message("Include: ${Franka_VERSION}")
@@ -35,8 +34,10 @@ else()
     add_subdirectory(pivot_control_messages)
 endif()
 
+add_subdirectory(frankx)
+
 include_directories(
-        "${frankx_INCLUDE_DIRS}"
+        "frankx/include"
         "${Franka_INCLUDE_DIRS}"
         "pivot_control_messages/include")
 
@@ -54,7 +55,7 @@ add_executable(keyboardTest
 
 target_link_libraries(${franka_pivot_control_LIB}
     Eigen3::Eigen
-    ${frankx_LIBRARIES}
+    frankx
         ${Franka_LIBRARIES}
         "pivot_control_messages")
 
