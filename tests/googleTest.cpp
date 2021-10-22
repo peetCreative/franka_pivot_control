@@ -175,27 +175,40 @@ INSTANTIATE_TEST_SUITE_P(Default, RobotJointMotionTest, testing::Values(
         frankx::Affine(0.09816521, -0.2417149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)})
 ));
 
-struct RobotJointMotionTest : RobotMoveTest, testing::WithParamInterface<correspondingPoses> {
+struct PivotTargetPose
+{
+    DOFPose pose;
+    int waitThere;
 };
 
-TEST_F(RobotMoveTest, TestPivoting)
-{
-    //TODO: find better initial Pose
-    testInitialPosition({-0.09110587, -1.281957, -0.1430118, -2.258051, -0.05919013, 1.794252, 2.516949});
-    // move to good ausgang position
+typedef std::vector<PivotTargetPose> TargetTrajectory;
+struct RobotPivotMotionTest : RobotMoveTest, testing::WithParamInterface<TargetTrajectory> {
+};
 
-    // for loop to move around meassuring the time needed to move to this position
+TEST_P(RobotPivotMotionTest, TestPivoting)
+{
+    // move to good ausgang position
+    testInitialPosition({-0.03665655, -1.02152, 0.000872533, -2.293926, 0.01398768, 1.902754, 0.785967});
+
     startPivoting();
 
-    for()
+    // for loop to move around meassuring the time needed to move to this position
+    for(auto target: GetParam())
     {
-
+        franka_pivot_control::FrankaPivotController::setTargetDOFPose(target.pose);
+        std::this_thread::sleep_for(std::chrono::milliseconds(target.waitThere));
     }
     // check that the first joint does not move to far
-
-
-
 }
+
+INSTANTIATE_TEST_SUITE_P(Default, RobotPivotMotionTest, testing::Values(
+        TargetTrajectory {
+                PivotTargetPose({{0,0,0,0}, 100}),
+                PivotTargetPose({{0,0,0.03,0}, 100}),
+                PivotTargetPose({{0,0,0.05,0}, 100}),
+                PivotTargetPose({{0,0,0.07,0}, 100})
+        }
+        ));
 
 int main(int argc, char *argv[])
 {
