@@ -120,14 +120,15 @@ namespace franka_pivot_control
                 target = mCurrentDOFPose;
                 intermediateTarget = mCurrentDOFPose;
             }
-            double rot_epsilon = 0.05;
-            double rot_epsilon_lim = rot_epsilon*0.8;
-            double trans_z_epsilon = 0.05;
-            double trans_z_epsilon_lim = trans_z_epsilon*0.8;
+            double rot_epsilon = 0.1;
+            double rot_epsilon_lim = rot_epsilon*0.1;
+            double trans_z_epsilon = 0.01;
+            double trans_z_epsilon_lim = trans_z_epsilon*0.1;
 
             while (true) {
-                std::this_thread::sleep_for(10ms);
+                std::this_thread::sleep_for(1ms);
                 //TODO: check if we are actually moving and not just blocked
+                updateCurrentPoses();
                 {
                     std::lock_guard<std::mutex> guard(mTargetCurrentMutex);
                     // when there is a new target DOFPose
@@ -135,11 +136,30 @@ namespace franka_pivot_control
                     // calc and set new waypoint
                     if (!mPivoting)
                         break;
-                    if (mTargetDOFPose != target ||
-                        (intermediateTarget != target &&
-                         mCurrentDOFPose.closeTo(intermediateTarget, rot_epsilon_lim,
-                                         trans_z_epsilon_lim))) {
-
+                    bool new_movement = false;
+                    // setTargetDOFPose was called
+                    if (mTargetDOFPose != target)
+                    {
+//                        std::cout << "PIVOTING " << "setTargetDOFPose was called" << std::endl;
+                        new_movement = true;
+                    }
+                    // we are on a longer movement with intermediate targets
+                    // and we approach a intermediateTarget
+                    if (intermediateTarget != target)
+                    {
+                        if(mCurrentDOFPose.closeTo(intermediateTarget, rot_epsilon_lim,
+                                                trans_z_epsilon_lim))
+                        {
+//                            std::cout << "PIVOTING " << "long movement reached intermediate" << std::endl;
+                            new_movement = true;
+                        }
+                    }
+                    if(!mIsRobotThreadRunning) {
+//                        std::cout << "PIVOTING " << "Robot Stopped" << std::endl;
+                        new_movement = true;
+                    }
+                    if (new_movement) {
+//                        std::cout << "PIVOTING " << "new_movement" << std::endl;
                         target = mTargetDOFPose;
                         // replace the current intermediat target with the newest Target
                         intermediateTarget = mTargetDOFPose;
