@@ -74,6 +74,18 @@ namespace franka_pivot_control
         mReady = true;
     }
 
+    FrankaPivotController::~FrankaPivotController()
+    {
+        mWaypointMotion.finish();
+        mPivoting = false;
+        while(mMoveThread.joinable() || mPivotThread.joinable())
+        {
+            if(mMoveThread.joinable())
+                mMoveThread.join();
+            if(mPivotThread.joinable())
+                mPivotThread.join();
+        }
+    }
     //write helper function for factor
     void FrankaPivotController::move()
     {
@@ -193,7 +205,13 @@ namespace franka_pivot_control
         {
             std::cout << "pivoting loop is broken" << std::endl;
         }
-        mPivoting = false;
+        mWaypointMotion.finish();
+        while (mMoveThread.joinable())
+            mMoveThread.join();
+        {
+            const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
+            mPivoting = false;
+        }
     }
 
     bool FrankaPivotController::setSpeed(float dynamicRel)
@@ -249,6 +267,8 @@ namespace franka_pivot_control
         mWaypointMotion.finish();
         mReady = false;
         mPivoting = false;
+        while(mPivotThread.joinable())
+            mPivotThread.join();
         return true;
     }
 

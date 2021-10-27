@@ -79,6 +79,9 @@ namespace franka_pivot_control
                 double distanceEE2Tip,
                 double dynamicRel,
                 double cameraTilt);
+
+        ~FrankaPivotController();
+
         //! \brief Set speed Value between 0 and 1
         /*! This function set the speed of the Franka Emika Robot
          *
