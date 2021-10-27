@@ -272,8 +272,4 @@ INSTANTIATE_TEST_SUITE_P(Default, RobotPivotMotionTest, testing::Values(
             }, 0.4, false})
         ));
 
-int main(int argc, char *argv[])
-{
-    testing::InitGoogleTest();
-    return RUN_ALL_TESTS();
-}
+
