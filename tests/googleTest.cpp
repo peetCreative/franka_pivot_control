@@ -185,9 +185,23 @@ struct PivotTargetPose
 {
     DOFPose pose;
     int waitThere;
+    bool expectReaching;
 };
 
-typedef std::vector<PivotTargetPose> TargetTrajectory;
+struct TargetTrajectory
+{
+    std::string name;
+    std::vector<PivotTargetPose> poses;
+    double speed;
+    //! check that franka move smoothly with this speed
+    bool check_for_franka_errors;
+
+    friend std::ostream& operator<<(std::ostream& o, TargetTrajectory const& a) {
+        o << a.name;
+        return o;
+    }
+};
+
 struct RobotPivotMotionTest : RobotMoveTest, testing::WithParamInterface<TargetTrajectory> {
 };
 
@@ -195,25 +209,67 @@ TEST_P(RobotPivotMotionTest, TestPivoting)
 {
     // move to good ausgang position
     testInitialPosition({-0.03665655, -1.02152, 0.000872533, -2.293926, 0.01398768, 1.902754, 0.785967});
-
+    setSpeed(GetParam().speed);
+    while (!mRobot->recoverFromErrors()){}
     startPivoting();
 
     // for loop to move around meassuring the time needed to move to this position
-    for(auto target: GetParam())
+    for(auto target: GetParam().poses)
     {
-        franka_pivot_control::FrankaPivotController::setTargetDOFPose(target.pose);
+        bool succ_set = setTargetDOFPose(target.pose);
+        EXPECT_TRUE(succ_set);
+        std::cout << "move" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(target.waitThere));
+        DOFPose pose;
+        bool succ_get = getCurrentDOFPose(pose);
+        EXPECT_TRUE(succ_get);
+        if(target.expectReaching)
+        {
+            std::cout << "target : " << target.pose.toString() << std::endl;
+            std::cout << "current: " << pose.toString() << std::endl;
+            EXPECT_TRUE(target.pose.closeTo(pose, 0.1, epsilon));
+        }
     }
-    // check that the first joint does not move to far
+    stopPivoting();
+    if(GetParam().check_for_franka_errors)
+    {
+        std::string franka_error;
+        EXPECT_FALSE(getFrankaError(franka_error));
+    }
+    //TODO: check that the first joint does not move to far
 }
 
 INSTANTIATE_TEST_SUITE_P(Default, RobotPivotMotionTest, testing::Values(
-        TargetTrajectory {
-                PivotTargetPose({{0,0,0,0}, 100}),
-                PivotTargetPose({{0,0,0.03,0}, 100}),
-                PivotTargetPose({{0,0,0.05,0}, 100}),
-                PivotTargetPose({{0,0,0.07,0}, 100})
-        }
+        TargetTrajectory({"Slow and with gaps",
+            {
+                PivotTargetPose({{0,0,0,0}, 1000, true}),
+                PivotTargetPose({{0,0,0.3,0}, 2000, true}),
+                PivotTargetPose({{0,0.1,0.5,0}, 2000, true}),
+                PivotTargetPose({{0.2,0.01,0.02,0}, 2000, true})
+            }, 0.2, true}),
+        TargetTrajectory({"Slow and without gaps",
+            {
+                PivotTargetPose({{0,0,0,0}, 10, true}),
+                PivotTargetPose({{0,0,0.3,0}, 100, false}),
+                PivotTargetPose({{0,0.1,0.2,0.02}, 100, false}),
+                PivotTargetPose({{0,0.1,0.5,0}, 2000, true}),
+                PivotTargetPose({{0.2,0.01,0.02,0}, 2000, true})
+            }, 0.2, true}),
+        TargetTrajectory({"Fast and with gaps",
+            {
+                PivotTargetPose({{0,0,0,0}, 1000, true}),
+                PivotTargetPose({{0,0,0.3,0}, 2000, true}),
+                PivotTargetPose({{0,0.1,0.5,0}, 2000, true}),
+                PivotTargetPose({{0.2,0.01,0.02,0}, 2000, true})
+            }, 0.4, false}),
+        TargetTrajectory({"Fast and without gaps",
+            {
+                PivotTargetPose({{0,0,0,0}, 10, true}),
+                PivotTargetPose({{0,0,0.3,0}, 100, false}),
+                PivotTargetPose({{0,0.1,0.2,0.02}, 100, false}),
+                PivotTargetPose({{0,0.1,0.5,0}, 2000, true}),
+                PivotTargetPose({{0.2,0.01,0.02,0}, 2000, true})
+            }, 0.4, false})
         ));
 
 int main(int argc, char *argv[])
