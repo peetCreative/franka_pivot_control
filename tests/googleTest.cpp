@@ -18,10 +18,10 @@ void testAffineApprox(frankx::Affine a, frankx::Affine b)
     EXPECT_LT(std::abs(a.x() - b.x()) , epsilon);
     EXPECT_LT(std::abs(a.y() - b.y()) , epsilon);
     EXPECT_LT(std::abs(a.z() - b.z()) , epsilon);
-    EXPECT_LT(std::abs(a.q_w() - b.q_w()) , epsilon);
-    EXPECT_LT(std::abs(a.q_x() - b.q_x()) , epsilon);
-    EXPECT_LT(std::abs(a.q_y() - b.q_y()) , epsilon);
-    EXPECT_LT(std::abs(a.q_z() - b.q_z()) , epsilon);
+    EXPECT_LT(std::abs(a.qW() - b.qW()) , epsilon);
+    EXPECT_LT(std::abs(a.qX() - b.qX()) , epsilon);
+    EXPECT_LT(std::abs(a.qY() - b.qY()) , epsilon);
+    EXPECT_LT(std::abs(a.qZ() - b.qZ()) , epsilon);
 }
 
 struct RobotTest : testing::Test, franka_pivot_control::FrankaPivotController {
@@ -83,8 +83,8 @@ std::stringstream AffineToString(movex::Affine a)
 {
     std::stringstream  ss;
     ss << " x: " << a.x() << " y: " << a.y() << " z: " << a.z()
-        << " q_w: " << a.q_w() << " q_x: " << a.q_x()
-        << " q_y: " << a.q_y() << " q_z: " << a.q_z();
+        << " q_w: " << a.qW() << " q_x: " << a.qX()
+        << " q_y: " << a.qY() << " q_z: " << a.qZ();
     return ss;
 }
 
@@ -157,11 +157,17 @@ TEST_P(RobotJointMotionTest, MoveJointPositions)
     {
         EXPECT_LT(std::abs(target.first.at(i) - current.at(i)) , epsilon);
     }
-    std::array<double, 16> currentPose = mRobot->currentPose().array();
-    std::array<double, 16> targetPose = target.second.array();
+    affx::Affine currentPose = mRobot->currentPose();
+    affx::Affine targetPose = target.second;
     for(int i = 0; i < 16; i++)
     {
-        EXPECT_LT(std::abs(targetPose[i] - currentPose[i]) , epsilon);
+        EXPECT_LT(std::abs(targetPose.x() - currentPose.x()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.y() - currentPose.y()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.z() - currentPose.z()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.qW() - currentPose.qW()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.qX() - currentPose.qX()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.qY() - currentPose.qY()) , epsilon);
+        EXPECT_LT(std::abs(targetPose.qZ() - currentPose.qZ()) , epsilon);
     }
 
 }

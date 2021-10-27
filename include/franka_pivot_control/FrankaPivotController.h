@@ -20,6 +20,7 @@ using namespace pivot_control_messages;
 
 namespace franka_pivot_control
 {
+    using Affine = affx::Affine;
     /*! \brief This class implements the interface
      * [PivotController](https://peetcreative.github.io/franka_pivot_control/classpivot__control__messages_1_1_pivot_controller.html)
      * by the robot
@@ -36,9 +37,9 @@ namespace franka_pivot_control
         movex::Waypoint mTargetWaypoint;
         std::shared_ptr<std::mutex> mMotionDataMutex;
         movex::MotionData mMotionData;
-        frankx::Affine mCurrentAffine;
+        Affine mCurrentAffine;
         //! just to evaluate the calcXtoY functions
-        frankx::Affine mInitialPPAffine;
+        Affine mInitialPPAffine;
         DOFPose mTargetDOFPose;
         DOFPose mCurrentDOFPose;
         std::mutex  mTargetCurrentMutex;
@@ -58,8 +59,6 @@ namespace franka_pivot_control
         bool mReady {false};
         std::deque<std::string> mFrankaErrors {};
 
-        //! \brief Test function for calcAffineFromDOFPose
-        bool testCalc(movex::Affine initialEEAffine);
         //! \brief Function to be run in a seperate thread to run the command loop
         DOFPose updateCurrentPoses();
         //! \brief Function to be run in a seperate thread to run the command loop
@@ -159,10 +158,10 @@ namespace franka_pivot_control
         bool isReady();
 
         //! \brief Function to calculate the target Affine pose from the DOFPose
-        void calcAffineFromDOFPose( DOFPose &dofPose, frankx::Affine &affine );
+        void calcAffineFromDOFPose( DOFPose &dofPose, Affine &affine );
         //! \brief Function to calculate the DOFPose from the affine
         void calcDOFPoseFromAffine(
-                frankx::Affine affine,
+                Affine affine,
                 DOFPose &dofPose, double &error);
 
     };

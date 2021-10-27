@@ -3,6 +3,7 @@
 //
 #include "FrankaPivotController.h"
 #include "frankx/frankx.hpp"
+#include "affx/affine.hpp"
 #include "PivotControlMessages.h"
 
 #include <thread>
@@ -14,6 +15,7 @@ using std::chrono_literals::operator""ms;
 
 namespace franka_pivot_control
 {
+    using Affine = affx::Affine;
     void printJointPositions(std::array<double,7> positions)
     {
         std::cout << "["
@@ -161,7 +163,7 @@ namespace franka_pivot_control
                         }
 
                         //from DOFPose calculate Cartisian Affine
-                        frankx::Affine targetAffine;
+                        Affine targetAffine;
                         calcAffineFromDOFPose(intermediateTarget, targetAffine);
 
                         std::cout << "currentDOFPose:   " << mCurrentDOFPose.toString() << std::endl;
@@ -254,7 +256,7 @@ namespace franka_pivot_control
     {
         if (mPivoting)
             return false;
-        movex::Affine targetAffine = mCurrentAffine;
+        Affine targetAffine = mRobot->currentPose();
         targetAffine.translate({0,0, -z});
         movex::Waypoint targetWaypoint(targetAffine);
         movex::WaypointMotion targetWaypointMotion({targetWaypoint});
@@ -279,7 +281,7 @@ namespace franka_pivot_control
 
     void FrankaPivotController::calcAffineFromDOFPose(
             DOFPose &dofPose,
-            frankx::Affine &affine)
+            Affine &affine)
     {
         double radius = mDistanceEE2PP - dofPose.transZ;
         //from DOFPose calculate Cartisian Affine
@@ -300,10 +302,10 @@ namespace franka_pivot_control
     }
 
     void FrankaPivotController::calcDOFPoseFromAffine(
-            frankx::Affine affine,
+            Affine affine,
             DOFPose &dofPose, double &error)
     {
-        frankx::Affine affine1 = affine;
+        Affine affine1 = affine;
         affine1.translate(Eigen::Vector3d::UnitZ());
         Eigen::ParametrizedLine<double, 3> line
         = Eigen::ParametrizedLine<double, 3>::Through(
@@ -317,20 +319,20 @@ namespace franka_pivot_control
         dofPose.transZ =
                 mDistanceEE2PP - distanceToClosestPoint;
         error = (mInitialPPAffine.translation() - closestPoint).norm();
-        frankx::Affine zeroAffine = affine;
-        zeroAffine.set_x(0);
-        zeroAffine.set_y(0);
-        zeroAffine.set_z(0);
-        frankx::Affine a = mInitialPPAffine;
-        a.set_x(0);
-        a.set_y(0);
-        a.set_z(0);
+        Affine zeroAffine = affine;
+        zeroAffine.setX(0);
+        zeroAffine.setY(0);
+        zeroAffine.setZ(0);
+        Affine a = mInitialPPAffine;
+        a.setX(0);
+        a.setY(0);
+        a.setZ(0);
         a.rotate(Eigen::AngleAxisd(
                 mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
         zeroAffine.rotate(Eigen::AngleAxisd(
                 mCameraTilt, Eigen::Vector3d::UnitX()).toRotationMatrix());
-        frankx::Affine diffAffine = a.inverse() * zeroAffine;
-        frankx::Affine b =  diffAffine.inverse();
+        Affine diffAffine = a.inverse() * zeroAffine;
+        Affine b =  diffAffine.inverse();
         auto diffRotation = b.rotation();
         double yaw1 = - std::asin(diffRotation(2,0));
         double cy1 = std::cos(yaw1);
@@ -402,14 +404,14 @@ namespace franka_pivot_control
             const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
             mCurrentAffine = mMotionData.last_pose;
         }
-        frankx::Affine cameraTipPoseAffine = mCurrentAffine;
+        Affine cameraTipPoseAffine = mCurrentAffine;
         cameraTipPoseAffine.translate({0,0,-mDistanceEE2Tip});
         Eigen::Vector3d translationE = cameraTipPoseAffine.translation();
         translation = {translationE.x(), translationE.y(), translationE.z()};
-        rotation = {cameraTipPoseAffine.q_w(),
-                    cameraTipPoseAffine.q_x(),
-                    cameraTipPoseAffine.q_y(),
-                    cameraTipPoseAffine.q_z()};
+        rotation = {cameraTipPoseAffine.qW(),
+                    cameraTipPoseAffine.qX(),
+                    cameraTipPoseAffine.qY(),
+                    cameraTipPoseAffine.qZ()};
         return true;
     }
 
