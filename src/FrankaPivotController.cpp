@@ -232,6 +232,7 @@ namespace franka_pivot_control
     bool FrankaPivotController::startPivoting(
             pivot_control_messages::DOFPose startDOFPose)
     {
+        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
         if (!mDOFBoundaries.poseInside(startDOFPose))
             return false;
         mWaypointMotion.return_when_finished = false;
@@ -264,9 +265,11 @@ namespace franka_pivot_control
 
     bool FrankaPivotController::stopPivoting()
     {
-        mWaypointMotion.finish();
-        mReady = false;
-        mPivoting = false;
+        {
+            const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
+            mPivoting = false;
+            mReady = false;
+        }
         while(mPivotThread.joinable())
             mPivotThread.join();
         return true;
@@ -274,6 +277,7 @@ namespace franka_pivot_control
 
     bool FrankaPivotController::moveCartesianZ(float z)
     {
+        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
         if (mPivoting)
             return false;
         Affine targetAffine = mRobot->currentPose();
@@ -285,16 +289,17 @@ namespace franka_pivot_control
 
     bool FrankaPivotController::moveJointSpace(std::array<double, 7> target)
     {
+        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
         if (mPivoting)
             return false;
         return mRobot->move(movex::JointMotion(target));;
     }
 
     bool FrankaPivotController::setTargetDOFPose(DOFPose dofPose) {
+        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
         if (!mPivoting || !mDOFBoundaries.poseInside(dofPose))
             return false;
 //        updateCurrentPoses();
-        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
         mTargetDOFPose = dofPose;
         return true;
     }
