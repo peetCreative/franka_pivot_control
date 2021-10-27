@@ -106,8 +106,8 @@ struct RobotMoveTest : RobotTest
         auto it2 = l2.begin();
         for(; it1 != jointPositions.end() && it2 != l2.end(); ++it1, ++it2)
         {
-            // should be smalle than some degrees
-            EXPECT_LT(it1 - it2, 0.01);
+            // should be smaller than some degrees
+            EXPECT_LT(*it1 - *it2, 0.01);
         }
     }
 
@@ -174,11 +174,11 @@ TEST_P(RobotJointMotionTest, MoveJointPositions)
 
 INSTANTIATE_TEST_SUITE_P(Default, RobotJointMotionTest, testing::Values(
     correspondingPoses({std::array<double, 7>({-0.09110587, -1.281957, -0.1430118, -2.258051, -0.05919013, 1.794252, 2.516949}),
-        frankx::Affine(0.1423738, -0.02001232, 0.7518987, -0.4309479, -0.3938808, -0.01671598, 0.8117033)}),
+        frankx::Affine(0.1219556, -0.08218796, 0.7718618, -0.19257, -0.380102, 0.114439, 0.897409)}),
     correspondingPoses({std::array<double, 7>({-0.3715936, -1.237756, -0.05479175, -2.274433, 0.5705662, 1.583464, 1.133754}),
-        frankx::Affine(0.09816521, -0.2317149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)}),
+        frankx::Affine(0.1421763, -0.02031988, 0.7521502, 0.7084383, 0.370412, -0.1356935, -0.5852327)}),
     correspondingPoses({std::array<double, 7>({-0.02132828, -1.337411, -0.5387088, -2.298805, 0.01366354, 1.794611, 1.597896}),
-        frankx::Affine(0.09816521, -0.2417149, 0.7056191, -0.1678587, -0.4444543, -0.05341336, 0.8783114)})
+        frankx::Affine(0.09802533, -0.2318589, 0.7058432, -0.4908422, -0.4311694, 0.1211248, 0.7473257)})
 ));
 
 struct PivotTargetPose
