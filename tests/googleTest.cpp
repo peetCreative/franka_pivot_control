@@ -102,12 +102,12 @@ struct RobotMoveTest : RobotTest
         std::this_thread::sleep_for(5s);
         //Check we succeded moving to initial Pose
         auto it1 = jointPositions.begin();
-        auto l2 = mRobot->currentJointPositions();
+        auto l2 = mRobot->readOnce().q;
         auto it2 = l2.begin();
         for(; it1 != jointPositions.end() && it2 != l2.end(); ++it1, ++it2)
         {
             // should be smaller than some degrees
-            EXPECT_LT(*it1 - *it2, 0.01);
+            ASSERT_LT(*it1 - *it2, 0.01);
         }
     }
 
