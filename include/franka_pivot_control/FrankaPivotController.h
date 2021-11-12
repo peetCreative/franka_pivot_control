@@ -15,6 +15,7 @@
 #include <deque>
 #include <iostream>
 #include <mutex>
+#include <atomic>
 
 using namespace pivot_control_messages;
 
@@ -30,19 +31,30 @@ namespace franka_pivot_control
     protected:
         std::unique_ptr<frankx::Robot> mRobot;
         std::thread mMoveThread;
+        std::mutex  mMoveThreadMutex {};
+        std::condition_variable mMoveCV;
+        std::atomic_bool mMoveing {false};
+        std::atomic_bool mQuitMoveThread {false};
+//        std::unique_lock<std::mutex>  mMoveThreadLock;
         std::thread mPivotThread;
-        bool mIsRobotThreadRunning {false};
-        bool mPivoting {false};
+        std::mutex  mPivotThreadMutex {};
+        std::condition_variable mPivotCV;
+        std::thread mCheckPosePivotThread;
+        std::mutex  mCheckPosePivotThreadMutex {};
+        std::condition_variable mCheckPosePivotCV;
+        std::mutex mNewMovementMutex {};
+        std::condition_variable mNewMovementCV;
+        std::atomic_bool mPivoting {false};
+        std::atomic_bool mQuitPivotThread {false};
+        //TODO: neccessary
         movex::WaypointMotion mWaypointMotion;
         movex::Waypoint mTargetWaypoint;
-        std::shared_ptr<std::mutex> mMotionDataMutex;
         movex::MotionData mMotionData;
         Affine mCurrentAffine;
-        //! just to evaluate the calcXtoY functions
-        Affine mInitialPPAffine;
-        DOFPose mTargetDOFPose;
-        DOFPose mCurrentDOFPose;
-        std::mutex  mTargetCurrentMutex;
+        std::atomic<DOFPose> mIntTargetDOFPose;
+        std::atomic<DOFPose> mTargetDOFPose;
+        std::atomic<DOFPose> mCurrentDOFPose;
+        std::atomic<double> mCurrentError {0};
         DOFBoundaries mDOFBoundaries
                 {
                         0.2, -0.5,
@@ -50,19 +62,29 @@ namespace franka_pivot_control
                         1.2, -1.2,
                         0.04, -0.02
                 };
-        double mCurrentError {0};
+        //! just to evaluate the calcXtoY functions
+        Affine mInitialPPAffine;
         double mDistanceEE2PP;
         double mDistanceEE2Tip;
         double mCameraTilt;
         Eigen::Vector3d mYAxis {Eigen::Vector3d::UnitY()};
         Eigen::Vector3d mZAxis {Eigen::Vector3d::UnitZ()};
+        std::mutex mCalcMutex {};
         bool mReady {false};
         std::deque<std::string> mFrankaErrors {};
 
+        bool readState(franka::RobotState &robotState);
+        bool checkCanMove();
+
+        //! \brief Function to update the DOFPose from robotState
+        bool updateCurrentPoses();
+        //! \brief Function to update the DOFPose from robotState
+        bool updateCurrentPoses(DOFPose &dofPose);
         //! \brief Function to be run in a seperate thread to run the command loop
-        DOFPose updateCurrentPoses();
-        //! \brief Function to be run in a seperate thread to run the command loop
+        void moveThread();
         void move();
+        void pivotThread();
+        void checkPivotMovementThread();
         void pivot();
     public:
         /*! \brief Constructor of the Interface class
@@ -164,7 +186,7 @@ namespace franka_pivot_control
         void calcAffineFromDOFPose( DOFPose &dofPose, Affine &affine );
         //! \brief Function to calculate the DOFPose from the affine
         void calcDOFPoseFromAffine(
-                Affine affine,
+                Affine &affine,
                 DOFPose &dofPose, double &error);
 
     };

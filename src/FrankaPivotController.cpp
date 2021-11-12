@@ -6,26 +6,26 @@
 #include "affx/affine.hpp"
 #include "PivotControlMessages.h"
 
-#include <thread>
-#include <chrono>
 using std::chrono_literals::operator""ms;
 #include <iostream>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-namespace franka_pivot_control
-{
+#define ROT_EPSILON 0.1
+#define TRANS_Z_EPSILON 0.1
+
+namespace franka_pivot_control {
     using Affine = affx::Affine;
-    void printJointPositions(std::array<double,7> positions)
-    {
+
+    void printJointPositions(std::array<double, 7> positions) {
         std::cout << "["
-            << positions.at(0) << " "
-            << positions.at(1) << " "
-            << positions.at(2) << " "
-            << positions.at(3) << " "
-            << positions.at(4) << " "
-            << positions.at(5) << " "
-            << positions.at(6) << "]" << std::endl;
+                  << positions.at(0) << " "
+                  << positions.at(1) << " "
+                  << positions.at(2) << " "
+                  << positions.at(3) << " "
+                  << positions.at(4) << " "
+                  << positions.at(5) << " "
+                  << positions.at(6) << "]" << std::endl;
     }
 
     FrankaPivotController::FrankaPivotController(
@@ -33,294 +33,442 @@ namespace franka_pivot_control
             double distanceEE2PP,
             double distanceEE2Tip,
             double dynamicRel,
-            double cameraTilt):
+            double cameraTilt) :
             mMotionData(),
             mDistanceEE2PP(distanceEE2PP),
             mDistanceEE2Tip(distanceEE2Tip),
-            mCameraTilt(cameraTilt)
-    {
+            mCameraTilt(cameraTilt){
         try {
             mRobot.reset(new frankx::Robot(robotHostname));
-            mRobot->automaticErrorRecovery();
+            franka::RobotState state = mRobot->readOnce();
+            if (state.robot_mode == franka::RobotMode::kReflex) {
+                mRobot->automaticErrorRecovery();
+            }
+            if (state.robot_mode != franka::RobotMode::kIdle) {
+                std::cout << "Robot not idle-mode." << std::endl;
+                mReady = false;
+            } else {
+                //alternatively
+                mRobot->setDynamicRel(dynamicRel);
+                mRobot->setDefaultBehavior();
+
+                // so the thread crashes and we can restart it properly
+                mRobot->repeat_on_error = false;
+
+                mReady = true;
+            }
+            mMoveThread = std::thread(
+                    &FrankaPivotController::moveThread,
+                    this);
+            mPivotThread = std::thread(
+                    &FrankaPivotController::pivotThread,
+                    this);
+            mCheckPosePivotThread = std::thread(
+                    &FrankaPivotController::checkPivotMovementThread,
+                    this);
         }
-        catch (...)
-        {
-            std::cout << "Initializing Panda failed" << std::endl;
+        catch (franka::Exception exception) {
+            std::cout << "Initializing Panda failed with: " << exception.what()
+                      << std::endl;
             mReady = false;
             return;
         }
 
-        //alternatively
-//        mRobot->velocity_rel = 0.01;
-//        mRobot->acceleration_rel = 0.01;
-//        mRobot->jerk_rel = 0.01;
-        mRobot->setDynamicRel(dynamicRel);
-        mRobot->setDefaultBehavior();
-
-        // so the thread crashes and we can restart it properly
-        mRobot->repeat_on_error = false;
-
-////        GOTO custom start pose
-//        std::array<double, 7> jointPos =
-//                {1.54919, -0.539112, 0.108926, -2.1571, -0.0957537, 2.05686, 0.782756};
-//        printJointPositions(jointPos);
-////        jointPos.at(0) += 1.57079632679;
-//        frankx::JointMotion turnright(jointPos);
-//        mRobot->move(turnright);
-//
-
-        mMotionDataMutex = std::make_shared<std::mutex>();
-        mMotionData.last_pose_lock = mMotionDataMutex;
-        mReady = true;
     }
 
-    FrankaPivotController::~FrankaPivotController()
-    {
+    FrankaPivotController::~FrankaPivotController() {
         mWaypointMotion.finish();
+        mQuitPivotThread.store(true);
         mPivoting = false;
-        while(mMoveThread.joinable() || mPivotThread.joinable())
-        {
-            if(mMoveThread.joinable())
-                mMoveThread.join();
-            if(mPivotThread.joinable())
-                mPivotThread.join();
+        mPivotCV.notify_all();
+        mCheckPosePivotCV.notify_all();
+        if (mPivotThread.joinable())
+            mPivotThread.join();
+        if (mCheckPosePivotThread.joinable())
+            mCheckPosePivotThread.join();
+        mQuitMoveThread.store(true);
+        mMoveCV.notify_one();
+        if (mMoveThread.joinable())
+            mMoveThread.join();
+    }
+
+    void FrankaPivotController::moveThread()
+    {
+        std::unique_lock lock(mMoveThreadMutex);
+        while(true) {
+            mMoveCV.wait(lock);
+            if (mQuitMoveThread.load()) {
+                std::cout << "stop move thread" << std::endl;
+                return;
+            }
+            std::cout << "start moving" << std::endl;
+            if (mMoveing.load())
+                move();
+            std::cout << "stop moving" << std::endl;
+            mMoveing.store(false);
         }
     }
+
     //write helper function for factor
     void FrankaPivotController::move()
     {
-        mIsRobotThreadRunning = true;
-        std::cout << "start motion" << std::endl;
         try {
-            if(!mRobot->move(mWaypointMotion, mMotionData))
-            {
-                mFrankaErrors.emplace_back("libfrankaerror");
+            if (!mRobot->move(mWaypointMotion, mMotionData)) {
+                franka::RobotState robotState = mRobot->readOnce();
+                mFrankaErrors.emplace_back(
+                        std::string(robotState.last_motion_errors));
                 std::cout << "stop motion on libfranka error" << std::endl;
             }
-        } catch (franka::CommandException exception)
-        {
+        } catch (franka::CommandException exception) {
+            std::cout << "franka error " << exception.what() << std::endl;
             mWaypointMotion.setNextWaypoints({});
         }
 
         if (mMotionData.didBreak())
             std::cout << "MotionData did Break" << std::endl;
-        mIsRobotThreadRunning = false;
+        mMoveing.store(false);
     }
 
-    void FrankaPivotController::pivot()
+    void FrankaPivotController::pivotThread()
     {
-        // The DOFPose we currently think we want to go to, get's updated from newest
-        DOFPose target;
-        // If we move not directly our intermediate target
-        DOFPose intermediateTarget;
-        try {
-            updateCurrentPoses();
+        std::unique_lock lock(mPivotThreadMutex);
+        std::cout << "start pivoting thread" << std::endl;
+        while(true)
+        {
+            mPivotCV.wait(lock);
+            if (mQuitPivotThread.load())
             {
-                //TODO: scoped mutex
-                target = mCurrentDOFPose;
-                intermediateTarget = mCurrentDOFPose;
+                std::cout << "end pivoting thread" << std::endl;
+                mPivoting.store(false);
+                return;
             }
-            double rot_epsilon = 0.1;
-            double rot_epsilon_lim = rot_epsilon*0.1;
-            double trans_z_epsilon = 0.01;
-            double trans_z_epsilon_lim = trans_z_epsilon*0.1;
+            std::cout << "start pivoting" << std::endl;
+            if (mPivoting.load())
+                pivot();
+            std::cout << "end pivoting" << std::endl;
+            mPivoting.store(false);
+        }
+    }
 
-            while (true) {
-                std::this_thread::sleep_for(1ms);
-                //TODO: check if we are actually moving and not just blocked
-                updateCurrentPoses();
-                {
-                    std::lock_guard<std::mutex> guard(mTargetCurrentMutex);
-                    // when there is a new target DOFPose
-                    // or when we approach an intermediate target
-                    // calc and set new waypoint
-                    if (!mPivoting)
+    void FrankaPivotController::checkPivotMovementThread() {
+        const double rot_epsilon_lim = ROT_EPSILON * 0.1;
+        const double trans_z_epsilon_lim = TRANS_Z_EPSILON * 0.1;
+
+        std::unique_lock lock(mCheckPosePivotThreadMutex);
+        std::cout << "start checking pivoting Movement thread" << std::endl;
+        while (true)
+        {
+            mCheckPosePivotCV.wait(lock);
+            std::cout << "start checking pivoting Movement2" << std::endl;
+            if (mQuitPivotThread.load()) {
+                std::cout << "stop checking pivoting Movement thread" << std::endl;
+                return;
+            }
+            if (mPivoting.load())
+            {
+                std::cout << "start checking pivoting Movement" << std::endl;
+                while (true) {
+                    std::this_thread::sleep_for(1ms);
+                    //TODO: check if we are actually moving and not just blocked
+                    if (!mPivoting.load()) {
+                        std::cout << "end checking pivoting Movement"
+                                  << std::endl;
                         break;
-                    bool new_movement = false;
-                    // setTargetDOFPose was called
-                    if (mTargetDOFPose != target)
-                    {
-//                        std::cout << "PIVOTING " << "setTargetDOFPose was called" << std::endl;
-                        new_movement = true;
                     }
-                    // we are on a longer movement with intermediate targets
-                    // and we approach a intermediateTarget
-                    if (intermediateTarget != target)
-                    {
-                        if(mCurrentDOFPose.closeTo(intermediateTarget, rot_epsilon_lim,
-                                                trans_z_epsilon_lim))
-                        {
-//                            std::cout << "PIVOTING " << "long movement reached intermediate" << std::endl;
-                            new_movement = true;
-                        }
-                    }
-                    if(!mIsRobotThreadRunning) {
-//                        std::cout << "PIVOTING " << "Robot Stopped" << std::endl;
-                        new_movement = true;
-                    }
-                    if (new_movement) {
-//                        std::cout << "PIVOTING " << "new_movement" << std::endl;
-                        target = mTargetDOFPose;
-                        // replace the current intermediat target with the newest Target
-                        intermediateTarget = mTargetDOFPose;
-                        std::vector<frankx::Waypoint> waypoints{};
-
-                        // check the diff_in angles so we are not moving to far in a straight line
-                        double diff_pitch =
-                                intermediateTarget.pitch - mCurrentDOFPose.pitch;
-                        double diff_yaw =
-                                intermediateTarget.yaw - mCurrentDOFPose.yaw;
-                        double diff_roll =
-                                intermediateTarget.roll - mCurrentDOFPose.roll;
-                        double diff_trans_z =
-                                intermediateTarget.transZ - mCurrentDOFPose.transZ;
-                        double diff_trans_z_abs = std::abs(diff_trans_z);
-                        double biggest_rot_diff_abs =
-                                std::max(std::abs(diff_pitch),
-                                         std::max(std::abs(diff_yaw),
-                                                  std::abs(diff_roll)));
-                        if (biggest_rot_diff_abs > rot_epsilon ||
-                            diff_trans_z_abs > trans_z_epsilon) {
-                            std::cout << "don not move to fast" << std::endl;
-                            int steps = std::max(biggest_rot_diff_abs / rot_epsilon,
-                                                 diff_trans_z_abs /
-                                                 trans_z_epsilon);
-                            intermediateTarget.pitch =
-                                    mCurrentDOFPose.pitch + diff_pitch / steps;
-                            intermediateTarget.yaw = mCurrentDOFPose.yaw + diff_yaw / steps;
-                            intermediateTarget.roll =
-                                    mCurrentDOFPose.roll + diff_roll / steps;
-                            intermediateTarget.transZ =
-                                    mCurrentDOFPose.transZ + diff_trans_z / steps;
-                        }
-
-                        //from DOFPose calculate Cartisian Affine
-                        Affine targetAffine;
-                        calcAffineFromDOFPose(intermediateTarget, targetAffine);
-
-                        std::cout << "currentDOFPose:   " << mCurrentDOFPose.toString() << std::endl;
-                        std::cout << "intermediatePose: " << intermediateTarget.toString() << std::endl;
-                        std::cout << "targetPose: " << target.toString() << std::endl;
-                        std::cout << "currentAffine:    " << mCurrentAffine.toString() << std::endl;
-                        std::cout << "targetAffine:     " << targetAffine.toString() << std::endl;
-
-                        mTargetWaypoint = movex::Waypoint(targetAffine);
-                        mWaypointMotion.setNextWaypoint(mTargetWaypoint);
-
-                        // check that our robot control loop is running, if not (re)start it.
-                        if (!mIsRobotThreadRunning) {
-                            mIsRobotThreadRunning = true;
-                            std::cout << "start new thread" << std::endl;
-                            mRobot->automaticErrorRecovery();
-                            if (mMoveThread.joinable())
-                                mMoveThread.join();
-                            mMoveThread = std::thread(&FrankaPivotController::move,
-                                                      this);
+                    updateCurrentPoses();
+                    DOFPose intermediateTarget = mIntTargetDOFPose.load();
+                    if (intermediateTarget != mTargetDOFPose.load()) {
+                        if (mCurrentDOFPose.load().closeTo(intermediateTarget,
+                                                   rot_epsilon_lim,
+                                                   trans_z_epsilon_lim)) {
+        //                            std::cout << "PIVOTING " << "long movement reached intermediate" << std::endl;
+                            mNewMovementCV.notify_one();
                         }
                     }
                 }
             }
         }
-        catch (...)
+    }
+    void FrankaPivotController::pivot() {
+        std::unique_lock lock(mNewMovementMutex);
+        DOFPose target;
+        DOFPose intermediateTarget;
+        DOFPose currentDOFPose;
+        while (true)
         {
-            std::cout << "pivoting loop is broken" << std::endl;
+            mNewMovementCV.wait(lock);
+            if (!mPivoting.load())
+                return;
+            updateCurrentPoses(currentDOFPose);
+            target = mTargetDOFPose;
+            // replace the current intermediat target with the newest Target
+            intermediateTarget = target;
+            std::vector<frankx::Waypoint> waypoints{};
+
+            // check the diff_in angles so we are not moving to far in a straight line
+            double diff_pitch =
+                    intermediateTarget.pitch -
+                    currentDOFPose.pitch;
+            double diff_yaw =
+                    intermediateTarget.yaw - currentDOFPose.yaw;
+            double diff_roll =
+                    intermediateTarget.roll - currentDOFPose.roll;
+            double diff_trans_z =
+                    intermediateTarget.transZ -
+                    currentDOFPose.transZ;
+            double diff_trans_z_abs = std::abs(diff_trans_z);
+            double biggest_rot_diff_abs =
+                    std::max(std::abs(diff_pitch),
+                             std::max(std::abs(diff_yaw),
+                                      std::abs(diff_roll)));
+            if (biggest_rot_diff_abs > ROT_EPSILON ||
+                diff_trans_z_abs > TRANS_Z_EPSILON) {
+                std::cout << "don not move to fast" << std::endl;
+                int steps = std::max(
+                        biggest_rot_diff_abs / ROT_EPSILON,
+                        diff_trans_z_abs /
+                        TRANS_Z_EPSILON);
+                intermediateTarget.pitch =
+                        currentDOFPose.pitch + diff_pitch / steps;
+                intermediateTarget.yaw =
+                        currentDOFPose.yaw + diff_yaw / steps;
+                intermediateTarget.roll =
+                        currentDOFPose.roll + diff_roll / steps;
+                intermediateTarget.transZ =
+                        currentDOFPose.transZ +
+                        diff_trans_z / steps;
+            }
+
+            mIntTargetDOFPose.store(intermediateTarget);
+            //from DOFPose calculate Cartisian Affine
+            Affine targetAffine;
+            calcAffineFromDOFPose(intermediateTarget, targetAffine);
+
+            std::cout << "currentDOFPose:   "
+                      << currentDOFPose.toString() << std::endl;
+            std::cout << "intermediatePose: "
+                      << intermediateTarget.toString() << std::endl;
+            std::cout << "targetPose: " << target.toString()
+                      << std::endl;
+            std::cout << "currentAffine:    "
+                      << mCurrentAffine.toString() << std::endl;
+            std::cout << "targetAffine:     "
+                      << targetAffine.toString() << std::endl;
+
+            mTargetWaypoint = movex::Waypoint(targetAffine);
+            mWaypointMotion.setNextWaypoint(mTargetWaypoint);
+
+            mMoveing.store(true);
+            mMoveCV.notify_one();
+
         }
-        mWaypointMotion.finish();
-        while (mMoveThread.joinable())
-            mMoveThread.join();
-        {
-            const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-            mPivoting = false;
-        }
+
+//        // The DOFPose we currently think we want to go to, get's updated from newest
+//        DOFPose target;
+//        // If we move not directly our intermediate target
+//        DOFPose intermediateTarget;
+//        try {
+//            updateCurrentPoses();
+//            {
+//                //TODO: scoped mutex
+//                target = mCurrentDOFPose;
+//                intermediateTarget = mCurrentDOFPose;
+//            }
+//            double rot_epsilon = 0.1;
+//            double rot_epsilon_lim = rot_epsilon * 0.1;
+//            double trans_z_epsilon = 0.01;
+//            double trans_z_epsilon_lim = trans_z_epsilon * 0.1;
+//
+//
+//            DOFPose currentDOFPose = mCurrentDOFPose.load();
+//            DOFPose targetDOFPose = mTargetDOFPose.load();
+//            // when there is a new target DOFPose
+//            // or when we approach an intermediate target
+//            // calc and set new waypoint
+//            if (!mPivoting)
+//                break;
+//            bool new_movement = false;
+//            // setTargetDOFPose was called
+//            if (targetDOFPose != target) {
+////                        std::cout << "PIVOTING " << "setTargetDOFPose was called" << std::endl;
+//                new_movement = true;
+//            }
+//            // we are on a longer movement with intermediate targets
+//            // and we approach a intermediateTarget
+//
+//
+//            if (new_movement) {
+////                        std::cout << "PIVOTING " << "new_movement" << std::endl;
+//
+//                {
+//                    std::unique_lock<std::mutex> moveLock(mMoveThreadMutex, std::defer_lock);
+//                    // check that our robot control loop is running, if not (re)start it.
+//                    if (!moveLock) {
+//                        std::cout << "start new thread" << std::endl;
+//                        if (checkCanMove() && moveLock.try_lock())
+//                        {
+//
+//                            moveLock.release();
+//                        }
+//                        else
+//                        {
+//                            mPivoting.store(false);
+//                            mReady = false;
+//                        }
+//                    }
+//                }
+//
+//            }
+//        }
+//        catch (...) {
+//            std::cout << "pivoting loop is broken" << std::endl;
+//        }
+//        mWaypointMotion.finish();
+//        mPivoting.store(false);
     }
 
-    bool FrankaPivotController::setSpeed(float dynamicRel)
-    {
+    bool FrankaPivotController::setSpeed(float dynamicRel) {
         //TODO: put this to ASSERT
-        if(dynamicRel < 0 || dynamicRel >= 1 || mIsRobotThreadRunning)
+        if (dynamicRel < 0 || dynamicRel >= 1)
             return false;
         try {
             mRobot->setDynamicRel(dynamicRel);
         }
-        catch (...)
-        {
+        catch (...) {
             return false;
         }
         return true;
     }
 
+    //TODO: check that everything is thread safe
     bool FrankaPivotController::startPivoting(
-            pivot_control_messages::DOFPose startDOFPose)
-    {
-        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-        if (!mDOFBoundaries.poseInside(startDOFPose))
-            return false;
-        mWaypointMotion.return_when_finished = false;
-        mCurrentDOFPose = startDOFPose;
-
-        mCurrentAffine = mRobot->currentPose();
-        std::cout << "mInitialEEAffine" << mCurrentAffine.toString() << std::endl;
-        mCurrentDOFPose = {0,0,0,0};
-        mDofPoseReady = true;
-        mDofBoundariesReady = true;
-//        auto rotation = Eigen::AngleAxisd(-cameraTilt, Eigen::Vector3d::UnitZ());
-//        mYAxis = rotation * Eigen::Vector3d::UnitY();
-//        mZAxis = rotation * Eigen::Vector3d::UnitY();
-        mInitialPPAffine = mCurrentAffine;
-        mInitialPPAffine.translate(Eigen::Vector3d(0,0,-mDistanceEE2PP));
-        mTargetWaypoint = movex::Waypoint(mCurrentAffine);
-        mWaypointMotion = movex::WaypointMotion({mTargetWaypoint}, false);
-
-        mReady = true;
-        if (!mPivoting)
+            pivot_control_messages::DOFPose startDOFPose) {
+        std::unique_lock<std::mutex> pivotLock(mPivotThreadMutex, std::defer_lock);
+        if (pivotLock.try_lock())
         {
-            if (mPivotThread.joinable())
-                mPivotThread.join();
-            mPivoting = true;
-            mPivotThread = std::thread(&FrankaPivotController::pivot,
-                                  this);
+            {
+                std::lock_guard<std::mutex> calcLock(mCalcMutex);
+                if (!mDOFBoundaries.poseInside(startDOFPose))
+                    return false;
+                franka::RobotState robotState;
+                if(!readState(robotState))
+                    return false;
+                mWaypointMotion.return_when_finished = false;
+                mInitialPPAffine = Affine(robotState.O_T_EE);
+                mInitialPPAffine.translate(Eigen::Vector3d(0, 0, -mDistanceEE2PP));
+            }
+            updateCurrentPoses();
+            mTargetDOFPose = startDOFPose;
+            mDofPoseReady = true;
+            mDofBoundariesReady = true;
+    //        auto rotation = Eigen::AngleAxisd(-cameraTilt, Eigen::Vector3d::UnitZ());
+    //        mYAxis = rotation * Eigen::Vector3d::UnitY();
+    //        mZAxis = rotation * Eigen::Vector3d::UnitY();
+            mTargetWaypoint = movex::Waypoint(mCurrentAffine);
+            mWaypointMotion = movex::WaypointMotion({mTargetWaypoint}, false);
+            mPivoting.store(true);
+            mPivotCV.notify_all();
+            mCheckPosePivotCV.notify_all();
+            std::cout << "notify booth pivot threads" << std::endl;
+            return true;
         }
-        return true;
+        else
+        {
+            std::cout << "seems that we are already pivoting" << std::endl;
+            return false;
+        }
     }
 
     bool FrankaPivotController::stopPivoting()
     {
-        {
-            const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-            mPivoting = false;
-            mReady = false;
-        }
-        while(mPivotThread.joinable())
-            mPivotThread.join();
+        mPivoting.store(false);
+        mReady = false;
+        //TODO:maybe wait for answer that pivoting stopped
         return true;
     }
 
+    bool FrankaPivotController::readState(franka::RobotState &robotState)
+    {
+        //TODO: or should we use mIsRobotThreadRunning
+        if (mMoveing.load() && mMotionData.is_moving)
+        {
+            return mMotionData.getRobotState(robotState);
+        }
+        else
+        {
+            try {
+                robotState = mRobot->readOnce();
+            }
+            catch (franka::Exception exception)
+            {
+                std::cout << "readState: can not read state" << exception.what() << std::endl;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    bool FrankaPivotController::checkCanMove()
+    {
+        franka::RobotState robotState;
+        if (!readState(robotState))
+            return false;
+        bool canMove {false};
+        switch (robotState.robot_mode) {
+            case franka::RobotMode::kIdle:
+                canMove = true;
+            case franka::RobotMode::kReflex:
+            case franka::RobotMode::kAutomaticErrorRecovery:
+                if (mRobot->hasErrors())
+                {
+                    mRobot->automaticErrorRecovery();
+                    //TODO: this might not be correct
+                    canMove = true;
+                }
+                else
+                {
+                    canMove = false;
+                }
+
+        }
+        return canMove;
+    }
+
+
     bool FrankaPivotController::moveCartesianZ(float z)
     {
-        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-        if (mPivoting)
+        std::unique_lock<std::mutex> lock(mMoveThreadMutex, std::defer_lock);
+        if (mPivoting.load() || !lock.try_lock())
             return false;
         Affine targetAffine = mRobot->currentPose();
         targetAffine.translate({0,0, -z});
         movex::Waypoint targetWaypoint(targetAffine);
         movex::WaypointMotion targetWaypointMotion({targetWaypoint});
-        return mRobot->move(targetWaypointMotion);
+        bool succ = mRobot->move(targetWaypointMotion);
+//        lock.release();
+        return succ;
     }
 
     bool FrankaPivotController::moveJointSpace(std::array<double, 7> target)
     {
-        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-        if (mPivoting)
+        std::unique_lock<std::mutex> lock(mMoveThreadMutex, std::defer_lock);
+        if (mPivoting.load() || !lock.try_lock())
+        {
+//            lock.release();
             return false;
-        return mRobot->move(movex::JointMotion(target));;
+        }
+        bool succ = mRobot->move(movex::JointMotion(target));
+//        lock.release();
+//        mMoveThreadLock.release();
+        mRobot->stop();
+        return succ;
     }
 
     bool FrankaPivotController::setTargetDOFPose(DOFPose dofPose) {
-        const std::lock_guard<std::mutex> lockGuard(mTargetCurrentMutex);
-        if (!mPivoting || !mDOFBoundaries.poseInside(dofPose))
+        if (!mPivoting.load() || !mDOFBoundaries.poseInside(dofPose))
             return false;
-//        updateCurrentPoses();
-        mTargetDOFPose = dofPose;
+        mTargetDOFPose.store(dofPose);
+        mNewMovementCV.notify_one();
         return true;
     }
 
@@ -328,6 +476,7 @@ namespace franka_pivot_control
             DOFPose &dofPose,
             Affine &affine)
     {
+        std::lock_guard<std::mutex> lockGuard(mCalcMutex);
         double radius = mDistanceEE2PP - dofPose.transZ;
         //from DOFPose calculate Cartisian Affine
         affine = mInitialPPAffine;
@@ -347,9 +496,11 @@ namespace franka_pivot_control
     }
 
     void FrankaPivotController::calcDOFPoseFromAffine(
-            Affine affine,
+            Affine &affine,
             DOFPose &dofPose, double &error)
     {
+        std::lock_guard<std::mutex> lockGuard(mCalcMutex);
+
         Affine affine1 = affine;
         affine1.translate(Eigen::Vector3d::UnitZ());
         Eigen::ParametrizedLine<double, 3> line
@@ -401,34 +552,35 @@ namespace franka_pivot_control
         }
     }
 
-    DOFPose FrankaPivotController::updateCurrentPoses()
+    bool FrankaPivotController::updateCurrentPoses()
     {
-        // We need to check first, if the robot is running
-        if(mIsRobotThreadRunning)
-        {
-            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
-            mCurrentAffine = mMotionData.last_pose;
-        }
-        else
-        {
-            mCurrentAffine = mRobot->currentPose();
-        }
-        DOFPose dofPose;
-        {
-            const std::lock_guard<std::mutex> lock(mTargetCurrentMutex);
-            calcDOFPoseFromAffine(mCurrentAffine, dofPose, mCurrentError);
-            if(dofPose.closeTo(mTargetDOFPose, 0.001, 0.001))
-                dofPose = mTargetDOFPose;
-            mCurrentDOFPose = dofPose;
-        }
-        return dofPose;
+        franka::RobotState robotState;
+        if(!readState(robotState))
+            return false;
+        Affine currentAffine = Affine(robotState.O_T_EE);
+        mCurrentAffine = currentAffine;
+        DOFPose targetDOFPose = mTargetDOFPose.load();
+        DOFPose currentDofPose;
+        double currentError;
+        calcDOFPoseFromAffine(currentAffine, currentDofPose, currentError);
+        if(currentDofPose.closeTo(targetDOFPose, 0.001, 0.001))
+            currentDofPose = targetDOFPose;
+        mCurrentDOFPose = currentDofPose;
+        mCurrentError = currentError;
+        return true;
+    }
+
+    bool FrankaPivotController::updateCurrentPoses(DOFPose &dofPose)
+    {
+        updateCurrentPoses();
+        dofPose = mCurrentDOFPose;
     }
 
     bool FrankaPivotController::getCurrentDOFPose(DOFPose &pose)
     {
         if (!mDofPoseReady)
             return false;
-        pose = updateCurrentPoses();
+        updateCurrentPoses(pose);
         return true;
     }
 
@@ -445,10 +597,7 @@ namespace franka_pivot_control
     {
         if (!mDofPoseReady)
             return false;
-        {
-            const std::lock_guard<std::mutex> lock(*(mMotionDataMutex));
-            mCurrentAffine = mMotionData.last_pose;
-        }
+        updateCurrentPoses();
         Affine cameraTipPoseAffine = mCurrentAffine;
         cameraTipPoseAffine.translate({0,0,-mDistanceEE2Tip});
         Eigen::Vector3d translationE = cameraTipPoseAffine.translation();

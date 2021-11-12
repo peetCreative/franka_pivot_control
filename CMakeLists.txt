@@ -57,7 +57,8 @@ target_link_libraries(${franka_pivot_control_LIB}
     Eigen3::Eigen
     frankx
         ${Franka_LIBRARIES}
-        "pivot_control_messages")
+        "pivot_control_messages"
+        atomic)
 
 target_link_libraries(keyboardTest
     ${franka_pivot_control_LIB})
