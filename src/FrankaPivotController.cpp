@@ -402,7 +402,9 @@ namespace franka_pivot_control {
         targetAffine.translate({0,0, -z});
         movex::Waypoint targetWaypoint(targetAffine);
         movex::WaypointMotion targetWaypointMotion({targetWaypoint});
-        bool succ = mRobot->move(targetWaypointMotion);
+        bool succ;
+        if (mReady)
+            succ = mRobot->move(targetWaypointMotion);
 //        lock.release();
         return succ;
     }
@@ -415,7 +417,9 @@ namespace franka_pivot_control {
 //            lock.release();
             return false;
         }
-        bool succ = mRobot->move(movex::JointMotion(target));
+        bool succ;
+        if (mReady)
+            succ = mRobot->move(movex::JointMotion(target));
 //        lock.release();
 //        mMoveThreadLock.release();
         mRobot->stop();
