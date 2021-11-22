@@ -71,7 +71,7 @@ namespace franka_pivot_control
         Eigen::Vector3d mYAxis {Eigen::Vector3d::UnitY()};
         Eigen::Vector3d mZAxis {Eigen::Vector3d::UnitZ()};
         std::mutex mCalcMutex {};
-        bool mReady {false};
+        bool mRobotReadyMoveing {false};
         std::deque<std::string> mFrankaErrors {};
 
         bool readState(franka::RobotState &robotState);

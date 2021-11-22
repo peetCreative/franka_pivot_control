@@ -59,7 +59,7 @@ namespace franka_pivot_control {
                     std::cout << "Robot in UserStopped mode." << std::endl;
                 if (state.robot_mode == franka::RobotMode::kAutomaticErrorRecovery)
                     std::cout << "Robot in Automatic Recovery mode." << std::endl;
-                mReady = false;
+                mRobotReadyMoveing = false;
                 return;
             } else {
                 //alternatively
@@ -69,7 +69,7 @@ namespace franka_pivot_control {
                 // so the thread crashes and we can restart it properly
                 mRobot->repeat_on_error = false;
 
-                mReady = true;
+                mRobotReadyMoveing = true;
             }
             mMoveThread = std::thread(
                     &FrankaPivotController::moveThread,
@@ -84,7 +84,7 @@ namespace franka_pivot_control {
         catch (franka::Exception exception) {
             std::cout << "Initializing Panda failed with: " << exception.what()
                       << std::endl;
-            mReady = false;
+            mRobotReadyMoveing = false;
             return;
         }
 
@@ -340,7 +340,7 @@ namespace franka_pivot_control {
     bool FrankaPivotController::stopPivoting()
     {
         mPivoting.store(false);
-        mReady = false;
+        mRobotReadyMoveing = false;
         //TODO:maybe wait for answer that pivoting stopped
         return true;
     }
@@ -403,7 +403,7 @@ namespace franka_pivot_control {
         movex::Waypoint targetWaypoint(targetAffine);
         movex::WaypointMotion targetWaypointMotion({targetWaypoint});
         bool succ;
-        if (mReady)
+        if (mRobotReadyMoveing)
             succ = mRobot->move(targetWaypointMotion);
 //        lock.release();
         return succ;
@@ -418,7 +418,7 @@ namespace franka_pivot_control {
             return false;
         }
         bool succ;
-        if (mReady)
+        if (mRobotReadyMoveing)
             succ = mRobot->move(movex::JointMotion(target));
 //        lock.release();
 //        mMoveThreadLock.release();
@@ -595,6 +595,6 @@ namespace franka_pivot_control {
 
     bool FrankaPivotController::isReady()
     {
-        return mReady && PivotController::isReady();
+        return mRobotReadyMoveing && PivotController::isReady();
     };
 }

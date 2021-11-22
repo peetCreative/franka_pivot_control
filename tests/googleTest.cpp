@@ -97,8 +97,8 @@ struct RobotMoveTest : RobotTest
 
     bool testInitialPosition(std::array<double, 7> jointPositions = goodJointPositions)
     {
-        // Test only mRobotReadyMoving because isReady is for Pivoting
-        if (!mReady){
+        // Test only mRobotReadyMoveing because isReady is for Pivoting
+        if (!mRobotReadyMoveing){
             return false;
         }
         moveJointSpace(jointPositions);
@@ -119,8 +119,8 @@ struct RobotMoveTest : RobotTest
     }
 
     ~RobotMoveTest() {
-        // Test only mRobotReadyMoving because isReady is for Pivoting
-        if (mReady)
+        // Test only mRobotReadyMoveing because isReady is for Pivoting
+        if (mRobotReadyMoveing)
             //GOOD INIITIAL POSE
             moveJointSpace(goodJointPositions);
     }
