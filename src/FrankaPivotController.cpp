@@ -93,7 +93,7 @@ namespace franka_pivot_control {
     FrankaPivotController::~FrankaPivotController() {
         mWaypointMotion.finish();
         mQuitPivotThread.store(true);
-        mPivoting = false;
+        mNewMovementCV.notify_all();
         mPivotCV.notify_all();
         mCheckPosePivotCV.notify_all();
         if (mPivotThread.joinable())
@@ -151,17 +151,15 @@ namespace franka_pivot_control {
         while(true)
         {
             mPivotCV.wait(lock);
+            if (mPivoting.load())
+                pivot();
+            mPivoting.store(false);
             if (mQuitPivotThread.load())
             {
                 std::cout << "end pivoting thread" << std::endl;
                 mPivoting.store(false);
                 return;
             }
-            std::cout << "start pivoting" << std::endl;
-            if (mPivoting.load())
-                pivot();
-            std::cout << "end pivoting" << std::endl;
-            mPivoting.store(false);
         }
     }
 
@@ -215,7 +213,7 @@ namespace franka_pivot_control {
             if (!mPivoting.load())
                 return;
             updateCurrentPoses(currentDOFPose);
-            target = mTargetDOFPose;
+            target = mTargetDOFPose.load();
             // replace the current intermediat target with the newest Target
             intermediateTarget = target;
             std::vector<frankx::Waypoint> waypoints{};
@@ -238,7 +236,6 @@ namespace franka_pivot_control {
                                       std::abs(diff_roll)));
             if (biggest_rot_diff_abs > ROT_EPSILON ||
                 diff_trans_z_abs > TRANS_Z_EPSILON) {
-                std::cout << "don not move to fast" << std::endl;
                 int steps = std::max(
                         biggest_rot_diff_abs / ROT_EPSILON,
                         diff_trans_z_abs /
