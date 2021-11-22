@@ -109,17 +109,18 @@ namespace franka_pivot_control {
     void FrankaPivotController::moveThread()
     {
         std::unique_lock lock(mMoveThreadMutex);
+        std::cout << "start move thread" << std::endl;
+        bool restart {false};
         while(true) {
-            mMoveCV.wait(lock);
+            if (!restart)
+                mMoveCV.wait(lock);
+            if (mMoveing.load())
+                move();
+            restart = mMoveing;
             if (mQuitMoveThread.load()) {
                 std::cout << "stop move thread" << std::endl;
                 return;
             }
-            std::cout << "start moving" << std::endl;
-            if (mMoveing.load())
-                move();
-            std::cout << "stop moving" << std::endl;
-            mMoveing.store(false);
         }
     }
 
@@ -132,6 +133,7 @@ namespace franka_pivot_control {
                 mFrankaErrors.emplace_back(
                         std::string(robotState.last_motion_errors));
                 std::cout << "stop motion on libfranka error" << std::endl;
+                mRobot->automaticErrorRecovery();
             }
         } catch (franka::CommandException exception) {
             std::cout << "franka error " << exception.what() << std::endl;
@@ -140,7 +142,6 @@ namespace franka_pivot_control {
 
         if (mMotionData.didBreak())
             std::cout << "MotionData did Break" << std::endl;
-        mMoveing.store(false);
     }
 
     void FrankaPivotController::pivotThread()

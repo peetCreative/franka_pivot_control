@@ -33,6 +33,7 @@ namespace franka_pivot_control
         std::thread mMoveThread;
         std::mutex  mMoveThreadMutex {};
         std::condition_variable mMoveCV;
+        //! tells if the robot should move
         std::atomic_bool mMoveing {false};
         std::atomic_bool mQuitMoveThread {false};
 //        std::unique_lock<std::mutex>  mMoveThreadLock;
