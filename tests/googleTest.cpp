@@ -95,9 +95,12 @@ struct RobotMoveTest : RobotTest
     {
     }
 
-    void testInitialPosition(std::array<double, 7> jointPositions = goodJointPositions)
+    bool testInitialPosition(std::array<double, 7> jointPositions = goodJointPositions)
     {
-        ASSERT_TRUE(mReady);
+        // Test only mRobotReadyMoving because isReady is for Pivoting
+        if (!mReady){
+            return false;
+        }
         moveJointSpace(jointPositions);
         std::this_thread::sleep_for(5s);
         //Check we succeded moving to initial Pose
@@ -107,19 +110,25 @@ struct RobotMoveTest : RobotTest
         for(; it1 != jointPositions.end() && it2 != l2.end(); ++it1, ++it2)
         {
             // should be smaller than some degrees
-            ASSERT_LT(*it1 - *it2, 0.01);
+            auto diff = std::abs(*it1 - *it2);
+            if(diff > 0.01) {
+                return false;
+            }
         }
+        return true;
     }
 
     ~RobotMoveTest() {
-        //GOOD INIITIAL POSE
-        moveJointSpace(goodJointPositions);
+        // Test only mRobotReadyMoving because isReady is for Pivoting
+        if (mReady)
+            //GOOD INIITIAL POSE
+            moveJointSpace(goodJointPositions);
     }
 };
 
 TEST_F(RobotMoveTest, MoveToInitialPosition)
 {
-    testInitialPosition();
+    ASSERT_TRUE(testInitialPosition());
 }
 
 struct RobotCartesianTest : RobotMoveTest, testing::WithParamInterface<double> {
@@ -127,7 +136,7 @@ struct RobotCartesianTest : RobotMoveTest, testing::WithParamInterface<double> {
 
 TEST_P(RobotCartesianTest, MoveCartesian)
 {
-    testInitialPosition();
+    ASSERT_TRUE(testInitialPosition());
     frankx::Affine start = mRobot->currentPose();
     double dist = GetParam();
     frankx::Affine target = start;
@@ -148,7 +157,7 @@ struct RobotJointMotionTest : RobotMoveTest, testing::WithParamInterface<corresp
 
 TEST_P(RobotJointMotionTest, MoveJointPositions)
 {
-    testInitialPosition();
+    ASSERT_TRUE(testInitialPosition());
     correspondingPoses target = GetParam();
     moveJointSpace(target.first);
     std::this_thread::sleep_for(2s);
@@ -208,7 +217,7 @@ struct RobotPivotMotionTest : RobotMoveTest, testing::WithParamInterface<TargetT
 TEST_P(RobotPivotMotionTest, TestPivoting)
 {
     // move to good ausgang position
-    testInitialPosition({-0.03665655, -1.02152, 0.000872533, -2.293926, 0.01398768, 1.902754, 0.785967});
+    ASSERT_TRUE(testInitialPosition({-0.03665655, -1.02152, 0.000872533, -2.293926, 0.01398768, 1.902754, 0.785967}));
     setSpeed(GetParam().speed);
     while (!mRobot->recoverFromErrors()){}
     startPivoting();
