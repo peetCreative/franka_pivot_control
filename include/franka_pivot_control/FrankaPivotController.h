@@ -183,10 +183,10 @@ namespace franka_pivot_control
         bool isReady();
 
         //! \brief Function to calculate the target Affine pose from the DOFPose
-        void calcAffineFromDOFPose( DOFPose &dofPose, Affine &affine );
+        void calcAffineFromDOFPose( const DOFPose &dofPose, Affine &affine );
         //! \brief Function to calculate the DOFPose from the affine
         void calcDOFPoseFromAffine(
-                Affine &affine,
+                const Affine &affine,
                 DOFPose &dofPose, double &error);
 
     };

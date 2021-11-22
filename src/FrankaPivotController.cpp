@@ -409,7 +409,7 @@ namespace franka_pivot_control {
     }
 
     void FrankaPivotController::calcAffineFromDOFPose(
-            DOFPose &dofPose,
+            const DOFPose &dofPose,
             Affine &affine)
     {
         std::lock_guard<std::mutex> lockGuard(mCalcMutex);
@@ -432,7 +432,7 @@ namespace franka_pivot_control {
     }
 
     void FrankaPivotController::calcDOFPoseFromAffine(
-            Affine &affine,
+            const Affine &affine,
             DOFPose &dofPose, double &error)
     {
         std::lock_guard<std::mutex> lockGuard(mCalcMutex);
