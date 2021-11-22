@@ -260,71 +260,7 @@ namespace franka_pivot_control {
 
             mMoveing.store(true);
             mMoveCV.notify_one();
-
         }
-
-//        // The DOFPose we currently think we want to go to, get's updated from newest
-//        DOFPose target;
-//        // If we move not directly our intermediate target
-//        DOFPose intermediateTarget;
-//        try {
-//            updateCurrentPoses();
-//            {
-//                //TODO: scoped mutex
-//                target = mCurrentDOFPose;
-//                intermediateTarget = mCurrentDOFPose;
-//            }
-//            double rot_epsilon = 0.1;
-//            double rot_epsilon_lim = rot_epsilon * 0.1;
-//            double trans_z_epsilon = 0.01;
-//            double trans_z_epsilon_lim = trans_z_epsilon * 0.1;
-//
-//
-//            DOFPose currentDOFPose = mCurrentDOFPose.load();
-//            DOFPose targetDOFPose = mTargetDOFPose.load();
-//            // when there is a new target DOFPose
-//            // or when we approach an intermediate target
-//            // calc and set new waypoint
-//            if (!mPivoting)
-//                break;
-//            bool new_movement = false;
-//            // setTargetDOFPose was called
-//            if (targetDOFPose != target) {
-////                        std::cout << "PIVOTING " << "setTargetDOFPose was called" << std::endl;
-//                new_movement = true;
-//            }
-//            // we are on a longer movement with intermediate targets
-//            // and we approach a intermediateTarget
-//
-//
-//            if (new_movement) {
-////                        std::cout << "PIVOTING " << "new_movement" << std::endl;
-//
-//                {
-//                    std::unique_lock<std::mutex> moveLock(mMoveThreadMutex, std::defer_lock);
-//                    // check that our robot control loop is running, if not (re)start it.
-//                    if (!moveLock) {
-//                        std::cout << "start new thread" << std::endl;
-//                        if (checkCanMove() && moveLock.try_lock())
-//                        {
-//
-//                            moveLock.release();
-//                        }
-//                        else
-//                        {
-//                            mPivoting.store(false);
-//                            mReady = false;
-//                        }
-//                    }
-//                }
-//
-//            }
-//        }
-//        catch (...) {
-//            std::cout << "pivoting loop is broken" << std::endl;
-//        }
-//        mWaypointMotion.finish();
-//        mPivoting.store(false);
     }
 
     bool FrankaPivotController::setSpeed(float dynamicRel) {
