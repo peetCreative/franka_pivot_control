@@ -95,9 +95,9 @@ namespace franka_pivot_control {
         mQuitPivotThread.store(true);
         mNewMovementCV.notify_all();
         mPivotCV.notify_all();
-        mCheckPosePivotCV.notify_all();
         if (mPivotThread.joinable())
             mPivotThread.join();
+        mCheckPosePivotCV.notify_all();
         if (mCheckPosePivotThread.joinable())
             mCheckPosePivotThread.join();
         mQuitMoveThread.store(true);
@@ -172,29 +172,39 @@ namespace franka_pivot_control {
         while (true)
         {
             mCheckPosePivotCV.wait(lock);
-            std::cout << "start checking pivoting Movement2" << std::endl;
             if (mQuitPivotThread.load()) {
                 std::cout << "stop checking pivoting Movement thread" << std::endl;
                 return;
             }
             if (mPivoting.load())
             {
-                std::cout << "start checking pivoting Movement" << std::endl;
                 while (true) {
                     std::this_thread::sleep_for(1ms);
                     //TODO: check if we are actually moving and not just blocked
                     if (!mPivoting.load()) {
                         std::cout << "end checking pivoting Movement"
                                   << std::endl;
+                        if (mQuitPivotThread.load()) {
+                            std::cout << "stop checking pivoting Movement thread" << std::endl;
+                            return;
+                        }
                         break;
                     }
-                    updateCurrentPoses();
+                    // make sure we are just using read from WaypointMotion
+                    franka::RobotState robotState;
+                    mMotionData.getRobotState(robotState);
+                    DOFPose currentDOFPose;
+                    double error;
+                    calcDOFPoseFromAffine(Affine(robotState.O_T_EE), currentDOFPose, error);
+
                     DOFPose intermediateTarget = mIntTargetDOFPose.load();
                     if (intermediateTarget != mTargetDOFPose.load()) {
-                        if (mCurrentDOFPose.load().closeTo(intermediateTarget,
+//                        std::cout << "check: "
+//                            << currentDOFPose.rollDiff(intermediateTarget) << " "
+//                            << currentDOFPose.transZDiff(intermediateTarget) << std::endl;
+                        if (currentDOFPose.closeTo(intermediateTarget,
                                                    rot_epsilon_lim,
                                                    trans_z_epsilon_lim)) {
-        //                            std::cout << "PIVOTING " << "long movement reached intermediate" << std::endl;
                             mNewMovementCV.notify_one();
                         }
                     }
@@ -415,6 +425,7 @@ namespace franka_pivot_control {
     bool FrankaPivotController::setTargetDOFPose(DOFPose dofPose) {
         if (!mPivoting.load() || !mDOFBoundaries.poseInside(dofPose))
             return false;
+        mIntTargetDOFPose.store(dofPose);
         mTargetDOFPose.store(dofPose);
         mNewMovementCV.notify_one();
         return true;
