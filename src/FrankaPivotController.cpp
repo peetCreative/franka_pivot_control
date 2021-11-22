@@ -42,11 +42,25 @@ namespace franka_pivot_control {
             mRobot.reset(new frankx::Robot(robotHostname));
             franka::RobotState state = mRobot->readOnce();
             if (state.robot_mode == franka::RobotMode::kReflex) {
+                std::cout << "automatic Error Recovery" << std::endl;
                 mRobot->automaticErrorRecovery();
             }
+            state = mRobot->readOnce();
             if (state.robot_mode != franka::RobotMode::kIdle) {
-                std::cout << "Robot not idle-mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kOther)
+                    std::cout << "Robot in Other mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kMove)
+                    std::cout << "Robot in Move mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kGuiding)
+                    std::cout << "Robot in Guiding mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kReflex)
+                    std::cout << "Robot in Reflex mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kUserStopped)
+                    std::cout << "Robot in UserStopped mode." << std::endl;
+                if (state.robot_mode == franka::RobotMode::kAutomaticErrorRecovery)
+                    std::cout << "Robot in Automatic Recovery mode." << std::endl;
                 mReady = false;
+                return;
             } else {
                 //alternatively
                 mRobot->setDynamicRel(dynamicRel);
