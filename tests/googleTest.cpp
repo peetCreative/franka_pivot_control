@@ -227,18 +227,19 @@ TEST_P(RobotPivotMotionTest, TestPivoting)
     {
         bool succ_set = setTargetDOFPose(target.pose);
         EXPECT_TRUE(succ_set);
-        std::cout << "move" << std::endl;
         std::this_thread::sleep_for(std::chrono::milliseconds(target.waitThere));
         DOFPose pose;
+        std::cout << "TEST: getCurrentDOFPose" << std::endl;
         bool succ_get = getCurrentDOFPose(pose);
         EXPECT_TRUE(succ_get);
         if(target.expectReaching)
         {
             std::cout << "target : " << target.pose.toString() << std::endl;
             std::cout << "current: " << pose.toString() << std::endl;
-            EXPECT_TRUE(target.pose.closeTo(pose, 0.1, epsilon));
+            EXPECT_TRUE(target.pose.closeTo(pose, 0.01, epsilon));
         }
     }
+    std::this_thread::sleep_for(3s);
     stopPivoting();
     if(GetParam().check_for_franka_errors)
     {
