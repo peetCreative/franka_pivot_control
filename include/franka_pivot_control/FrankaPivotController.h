@@ -179,6 +179,9 @@ namespace franka_pivot_control
          * @return true if there is a message
          */
         bool getFrankaError(std::string &frankaError);
+
+        //! \brief returns franka RobotState
+        bool getRobotState(franka::RobotState& robotState);
         //! \brief indicate if the controller is ready to pivot
         //! See [PivotController::isReady](https://peetcreative.github.io/franka_pivot_control/classpivot__control__messages_1_1_pivot_controller.html)
         bool isReady();

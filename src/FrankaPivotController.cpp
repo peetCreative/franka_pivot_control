@@ -597,4 +597,20 @@ namespace franka_pivot_control {
     {
         return mRobotReadyMoveing && PivotController::isReady();
     };
+
+    bool FrankaPivotController::getRobotState(franka::RobotState &robotState) {
+        if (mMotionData.is_moving)
+            return mMotionData.getRobotState(robotState);
+        else
+        {
+            try {
+                robotState = mRobot->readOnce();
+            }
+            catch (...)
+            {
+                return false;
+            }
+            return true;
+        }
+    }
 }
