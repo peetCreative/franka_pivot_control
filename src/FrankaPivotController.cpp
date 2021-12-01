@@ -14,18 +14,25 @@ using std::chrono_literals::operator""ms;
 #define ROT_EPSILON 0.1
 #define TRANS_Z_EPSILON 0.1
 
+#ifndef LOG
+#define FPCLOG std::cout
+#endif
+#ifndef FPCLOGEND
+#define FPCLOGEND std::endl
+#endif
+
 namespace franka_pivot_control {
     using Affine = affx::Affine;
 
     void printJointPositions(std::array<double, 7> positions) {
-        std::cout << "["
+        FPCLOG << "["
                   << positions.at(0) << " "
                   << positions.at(1) << " "
                   << positions.at(2) << " "
                   << positions.at(3) << " "
                   << positions.at(4) << " "
                   << positions.at(5) << " "
-                  << positions.at(6) << "]" << std::endl;
+                  << positions.at(6) << "]" << FPCLOGEND;
     }
 
     FrankaPivotController::FrankaPivotController(
@@ -42,23 +49,23 @@ namespace franka_pivot_control {
             mRobot.reset(new frankx::Robot(robotHostname));
             franka::RobotState state = mRobot->readOnce();
             if (state.robot_mode == franka::RobotMode::kReflex) {
-                std::cout << "automatic Error Recovery" << std::endl;
+                FPCLOG << "automatic Error Recovery" << FPCLOGEND;
                 mRobot->automaticErrorRecovery();
             }
             state = mRobot->readOnce();
             if (state.robot_mode != franka::RobotMode::kIdle) {
                 if (state.robot_mode == franka::RobotMode::kOther)
-                    std::cout << "Robot in Other mode." << std::endl;
+                    FPCLOG << "Robot in Other mode." << FPCLOGEND;
                 if (state.robot_mode == franka::RobotMode::kMove)
-                    std::cout << "Robot in Move mode." << std::endl;
+                    FPCLOG << "Robot in Move mode." << FPCLOGEND;
                 if (state.robot_mode == franka::RobotMode::kGuiding)
-                    std::cout << "Robot in Guiding mode." << std::endl;
+                    FPCLOG << "Robot in Guiding mode." << FPCLOGEND;
                 if (state.robot_mode == franka::RobotMode::kReflex)
-                    std::cout << "Robot in Reflex mode." << std::endl;
+                    FPCLOG << "Robot in Reflex mode." << FPCLOGEND;
                 if (state.robot_mode == franka::RobotMode::kUserStopped)
-                    std::cout << "Robot in UserStopped mode." << std::endl;
+                    FPCLOG << "Robot in UserStopped mode." << FPCLOGEND;
                 if (state.robot_mode == franka::RobotMode::kAutomaticErrorRecovery)
-                    std::cout << "Robot in Automatic Recovery mode." << std::endl;
+                    FPCLOG << "Robot in Automatic Recovery mode." << FPCLOGEND;
                 mRobotReadyMoveing = false;
                 return;
             } else {
@@ -82,8 +89,7 @@ namespace franka_pivot_control {
                     this);
         }
         catch (franka::Exception exception) {
-            std::cout << "Initializing Panda failed with: " << exception.what()
-                      << std::endl;
+            FPCLOG << "Initializing Panda failed with: " << exception.what() << FPCLOGEND;
             mRobotReadyMoveing = false;
             return;
         }
@@ -109,7 +115,7 @@ namespace franka_pivot_control {
     void FrankaPivotController::moveThread()
     {
         std::unique_lock lock(mMoveThreadMutex);
-        std::cout << "start move thread" << std::endl;
+        FPCLOG << "start move thread" << FPCLOGEND;
         bool restart {false};
         while(true) {
             if (!restart)
@@ -118,7 +124,7 @@ namespace franka_pivot_control {
                 move();
             restart = mMoveing;
             if (mQuitMoveThread.load()) {
-                std::cout << "stop move thread" << std::endl;
+                FPCLOG << "stop move thread" << FPCLOGEND;
                 return;
             }
         }
@@ -132,22 +138,22 @@ namespace franka_pivot_control {
                 franka::RobotState robotState = mRobot->readOnce();
                 mFrankaErrors.emplace_back(
                         std::string(robotState.last_motion_errors));
-                std::cout << "stop motion on libfranka error" << std::endl;
+                FPCLOG << "stop motion on libfranka error" << FPCLOGEND;
                 mRobot->automaticErrorRecovery();
             }
         } catch (franka::CommandException exception) {
-            std::cout << "franka error " << exception.what() << std::endl;
+            FPCLOG << "franka error " << exception.what() << FPCLOGEND;
             mWaypointMotion.setNextWaypoints({});
         }
 
         if (mMotionData.didBreak())
-            std::cout << "MotionData did Break" << std::endl;
+            FPCLOG << "MotionData did Break" << FPCLOGEND;
     }
 
     void FrankaPivotController::pivotThread()
     {
         std::unique_lock lock(mPivotThreadMutex);
-        std::cout << "start pivoting thread" << std::endl;
+        FPCLOG << "start pivoting thread" << FPCLOGEND;
         while(true)
         {
             mPivotCV.wait(lock);
@@ -156,7 +162,7 @@ namespace franka_pivot_control {
             mPivoting.store(false);
             if (mQuitPivotThread.load())
             {
-                std::cout << "end pivoting thread" << std::endl;
+                FPCLOG << "end pivoting thread" << FPCLOGEND;
                 mPivoting.store(false);
                 return;
             }
@@ -168,12 +174,12 @@ namespace franka_pivot_control {
         const double trans_z_epsilon_lim = TRANS_Z_EPSILON * 0.1;
 
         std::unique_lock lock(mCheckPosePivotThreadMutex);
-        std::cout << "start checking pivoting Movement thread" << std::endl;
+        FPCLOG << "start checking pivoting Movement thread" << FPCLOGEND;
         while (true)
         {
             mCheckPosePivotCV.wait(lock);
             if (mQuitPivotThread.load()) {
-                std::cout << "stop checking pivoting Movement thread" << std::endl;
+                FPCLOG << "stop checking pivoting Movement thread" << FPCLOGEND;
                 return;
             }
             if (mPivoting.load())
@@ -182,10 +188,9 @@ namespace franka_pivot_control {
                     std::this_thread::sleep_for(1ms);
                     //TODO: check if we are actually moving and not just blocked
                     if (!mPivoting.load()) {
-                        std::cout << "end checking pivoting Movement"
-                                  << std::endl;
+                        FPCLOG << "end checking pivoting Movement" << FPCLOGEND;
                         if (mQuitPivotThread.load()) {
-                            std::cout << "stop checking pivoting Movement thread" << std::endl;
+                            FPCLOG << "stop checking pivoting Movement thread" << FPCLOGEND;
                             return;
                         }
                         break;
@@ -199,9 +204,9 @@ namespace franka_pivot_control {
 
                     DOFPose intermediateTarget = mIntTargetDOFPose.load();
                     if (intermediateTarget != mTargetDOFPose.load()) {
-//                        std::cout << "check: "
+//                        FPCLOG << "check: "
 //                            << currentDOFPose.rollDiff(intermediateTarget) << " "
-//                            << currentDOFPose.transZDiff(intermediateTarget) << std::endl;
+//                            << currentDOFPose.transZDiff(intermediateTarget));
                         if (currentDOFPose.closeTo(intermediateTarget,
                                                    rot_epsilon_lim,
                                                    trans_z_epsilon_lim)) {
@@ -266,16 +271,15 @@ namespace franka_pivot_control {
             Affine targetAffine;
             calcAffineFromDOFPose(intermediateTarget, targetAffine);
 
-            std::cout << "currentDOFPose:   "
-                      << currentDOFPose.toString() << std::endl;
-            std::cout << "intermediatePose: "
-                      << intermediateTarget.toString() << std::endl;
-            std::cout << "targetPose: " << target.toString()
-                      << std::endl;
-            std::cout << "currentAffine:    "
-                      << mCurrentAffine.toString() << std::endl;
-            std::cout << "targetAffine:     "
-                      << targetAffine.toString() << std::endl;
+            FPCLOG << "currentDOFPose:   "
+                      << currentDOFPose.toString() << FPCLOGEND;
+            FPCLOG << "intermediatePose: "
+                      << intermediateTarget.toString() << FPCLOGEND;
+            FPCLOG << "targetPose: " << target.toString() << FPCLOGEND;
+            FPCLOG << "currentAffine:    "
+                      << mCurrentAffine.toString() << FPCLOGEND;
+            FPCLOG << "targetAffine:     "
+                      << targetAffine.toString() << FPCLOGEND;
 
             mTargetWaypoint = movex::Waypoint(targetAffine);
             mWaypointMotion.setNextWaypoint(mTargetWaypoint);
@@ -327,12 +331,12 @@ namespace franka_pivot_control {
             mPivoting.store(true);
             mPivotCV.notify_all();
             mCheckPosePivotCV.notify_all();
-            std::cout << "notify booth pivot threads" << std::endl;
+            FPCLOG << "notify booth pivot threads" << FPCLOGEND;
             return true;
         }
         else
         {
-            std::cout << "seems that we are already pivoting" << std::endl;
+            FPCLOG << "seems that we are already pivoting" << FPCLOGEND;
             return false;
         }
     }
@@ -359,7 +363,7 @@ namespace franka_pivot_control {
             }
             catch (franka::Exception exception)
             {
-                std::cout << "readState: can not read state" << exception.what() << std::endl;
+                FPCLOG << "readState: can not read state" << exception.what() << FPCLOGEND;
                 return false;
             }
             return true;
