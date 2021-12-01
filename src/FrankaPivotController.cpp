@@ -122,7 +122,7 @@ namespace franka_pivot_control {
                 mMoveCV.wait(lock);
             if (mMoveing.load())
                 move();
-            restart = mMoveing;
+            restart = mMoveing.load();
             if (mQuitMoveThread.load()) {
                 FPCLOG << "stop move thread" << FPCLOGEND;
                 return;
