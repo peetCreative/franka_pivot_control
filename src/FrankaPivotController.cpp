@@ -99,6 +99,7 @@ namespace franka_pivot_control {
     FrankaPivotController::~FrankaPivotController() {
         mWaypointMotion.finish();
         mQuitPivotThread.store(true);
+        mPivoting.store(false);
         mNewMovementCV.notify_all();
         mPivotCV.notify_all();
         if (mPivotThread.joinable())
