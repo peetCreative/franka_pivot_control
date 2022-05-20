@@ -12,7 +12,7 @@ using std::chrono_literals::operator""ms;
 #include <Eigen/Geometry>
 
 #define ROT_EPSILON 0.1
-#define TRANS_Z_EPSILON 0.1
+#define TRANS_Z_EPSILON 0.01
 
 #ifndef LOG
 #define FPCLOG std::cout
@@ -170,8 +170,8 @@ namespace franka_pivot_control {
     }
 
     void FrankaPivotController::checkPivotMovementThread() {
-        const double rot_epsilon_lim = ROT_EPSILON * 0.1;
-        const double trans_z_epsilon_lim = TRANS_Z_EPSILON * 0.1;
+        const double rot_epsilon_lim = ROT_EPSILON * 0.5;
+        const double trans_z_epsilon_lim = TRANS_Z_EPSILON * 0.5;
 
         std::unique_lock lock(mCheckPosePivotThreadMutex);
         FPCLOG << "start checking pivoting Movement thread" << FPCLOGEND;
@@ -521,6 +521,8 @@ namespace franka_pivot_control {
 
     bool FrankaPivotController::updateCurrentPoses()
     {
+        const double rot_epsilon_lim = ROT_EPSILON * 0.5;
+        const double trans_z_epsilon_lim = TRANS_Z_EPSILON * 0.5;
         franka::RobotState robotState;
         if(!readState(robotState))
             return false;
@@ -530,7 +532,7 @@ namespace franka_pivot_control {
         DOFPose currentDofPose;
         double currentError;
         calcDOFPoseFromAffine(currentAffine, currentDofPose, currentError);
-        if(currentDofPose.closeTo(targetDOFPose, 0.001, 0.001))
+        if(currentDofPose.closeTo(targetDOFPose, rot_epsilon_lim, trans_z_epsilon_lim))
             currentDofPose = targetDOFPose;
         mCurrentDOFPose = currentDofPose;
         mCurrentError = currentError;
